@@ -25,15 +25,29 @@ func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	pathParts := strings.Split(r.URL.Path, "/")
-	fmt.Printf("len %d\n", len(pathParts))
 
-	if len(pathParts) != 5 {
-		http.Error(w, "Invalid path format", http.StatusBadRequest)
+	pathParts := strings.Split(r.URL.Path, "/")
+
+	if len(pathParts) < 2 {
+		http.Error(w, "wrong path", http.StatusBadRequest)
 		return
 	}
 	if pathParts[1] != "update" {
 		http.Error(w, "Invalid path format: use first /update/", http.StatusBadRequest)
+		return
+	}
+	if pathParts[2] != "counter" && pathParts[2] != "gauge" {
+		http.Error(w, "Invalid path format: use first /update/", http.StatusBadRequest)
+		return
+	}
+
+	if len(pathParts) == 2 {
+		http.Error(w, "Not found type, name, value", http.StatusNotFound)
+		return
+	}
+
+	if len(pathParts) != 5 {
+		http.Error(w, "Invalid path format", http.StatusBadRequest)
 		return
 	}
 
@@ -47,10 +61,11 @@ func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := processMetric(metricType, metricName, metricValue)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+
 }
 
 func processMetric(metricType, metricName, metricValue string) error {
