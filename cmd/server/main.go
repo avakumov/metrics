@@ -14,7 +14,6 @@ func main() {
 }
 
 func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	//fmt.Printf(" contentType: %s\n", r.Header.Get("Content-Type"))
 	if http.MethodPost != r.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -46,7 +45,7 @@ func updateMetricHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(pathParts) == 3 {
+	if len(pathParts) == 4 && pathParts[3] == "" {
 		http.Error(w, "Not found type, name, value", http.StatusNotFound)
 		return
 	}
