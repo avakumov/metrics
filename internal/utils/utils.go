@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func ParseMetric(metricType, metricName, metricValue string) error {
+func CheckMetric(metricType, metricName, metricValue string) error {
 	switch metricType {
 	case "counter":
 		value, err := strconv.ParseInt(metricValue, 10, 64)

@@ -1,18 +1,14 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"math/rand/v2"
-	"net/http"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/avakumov/metrics/internal/models"
-
 	"github.com/avakumov/metrics/internal/utils"
+	"github.com/go-resty/resty/v2"
 )
 
 // MemStatsCollector собирает и управляет метриками
@@ -21,11 +17,14 @@ type MemStatsCollector struct {
 	metrics     []models.Metric
 	count       int
 	RandomValue int64
+	restyClient *resty.Client
 }
 
 // NewMemStatsCollector создает новый сборщик метрик
 func NewMemStatsCollector() *MemStatsCollector {
-	return &MemStatsCollector{}
+	return &MemStatsCollector{
+		restyClient: resty.New(),
+	}
 }
 
 // Collect собирает все метрики памяти
@@ -73,57 +72,25 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 func (c *MemStatsCollector) SendMetrics() {
 	c.metricsLock.Lock()
 
-	endpoint := "http://localhost:8080"
-	client := &http.Client{}
+	client := c.restyClient
 
 	for _, metric := range c.metrics {
+		params := map[string]string{
+			"typeMetric":  "gauge",
+			"metricId":    metric.Id,
+			"metricValue": fmt.Sprintf("%f", *metric.Value),
+		}
 
-		url := fmt.Sprintf("%s/%s/%s/%s/%f", endpoint, "update", "gauge", metric.Id, *metric.Value)
-		fmt.Println(url)
-		request, err := http.NewRequest(http.MethodPost, url, nil)
+		resp, err := client.R().
+			SetHeader("Content-Type", "text/plain").
+			SetPathParams(params).
+			Post("http://localhost:8080/update/{typeMetric}/{metricId}/{metricValue}")
+
 		if err != nil {
-			panic(err)
+			fmt.Printf("▶️  REQUEST ERROR: %v\n", err)
 		}
-		request.Header.Add("Content-Type", "text/plain")
-		response, err := client.Do(request)
-		if err != nil {
-			panic(err)
-		}
-		// выводим код ответа
-		fmt.Println("Статус-код ", response.Status)
-		defer response.Body.Close()
-		// читаем поток из тела ответа
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			panic(err)
-		}
-		// и печатаем его
-		fmt.Println(string(body))
+		fmt.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
 	}
 
 	c.metricsLock.Unlock()
-}
-
-// GetMetric возвращает конкретную метрику по имени
-func (c *MemStatsCollector) GetMetric(name string) (models.Metric, bool) {
-	for _, metric := range c.metrics {
-		if metric.Id == name {
-			return metric, true
-		}
-	}
-	return models.Metric{}, false
-}
-
-// PrintMetrics печатает все метрики в читаемом формате
-func (c *MemStatsCollector) PrintMetrics() {
-	fmt.Printf("=== Memory Metrics at %s ===\n", time.Now().Format(time.RFC3339))
-	for _, metric := range c.metrics {
-		fmt.Printf("%-20s: %.2f\n", metric.Id, *metric.Value)
-	}
-	fmt.Println("=====================================")
-}
-
-// ToJSON возвращает метрики в формате JSON
-func (c *MemStatsCollector) ToJSON() ([]byte, error) {
-	return json.MarshalIndent(c.metrics, "", "  ")
 }
