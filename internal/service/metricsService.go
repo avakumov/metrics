@@ -18,7 +18,7 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 }
 
 func (s *MetricService) GetMetric(id string) (models.Metric, error) {
-	return s.metricsRepo.GetMetricById(id)
+	return s.metricsRepo.GetMetricByID(id)
 }
 
 func (s *MetricService) GetAllMetric() ([]models.Metric, error) {
@@ -26,5 +26,5 @@ func (s *MetricService) GetAllMetric() ([]models.Metric, error) {
 }
 
 func (s *MetricService) RemoveMetric(id string) error {
-	return s.metricsRepo.DeleteMetricById(id)
+	return s.metricsRepo.DeleteMetricByID(id)
 }

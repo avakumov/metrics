@@ -19,12 +19,12 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (r *MemoryRepository) GetMetricById(id string) (models.Metric, error) {
+func (r *MemoryRepository) GetMetricByID(id string) (models.Metric, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	metric, exist := r.metrics[id]
 	if !exist {
-		return models.Metric{}, fmt.Errorf("Не найдена метрика: %s", id)
+		return models.Metric{}, fmt.Errorf("not found metric: %s", id)
 	}
 	return metric, nil
 }
@@ -34,18 +34,18 @@ func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.metrics[metric.Id] = metric
+	r.metrics[metric.ID] = metric
 	return nil
 }
 
-func (r *MemoryRepository) DeleteMetricById(id string) error {
+func (r *MemoryRepository) DeleteMetricByID(id string) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	metric, exist := r.metrics[id]
 	if !exist {
-		return fmt.Errorf("Удаление не выполнено. Не найдена метрика: %s", id)
+		return fmt.Errorf("delete with error. Not found: %s", id)
 	}
 	r.metrics[id] = metric
 	return nil

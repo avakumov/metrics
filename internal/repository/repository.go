@@ -5,8 +5,8 @@ import (
 )
 
 type Repository interface {
-	GetMetricById(id string) (models.Metric, error)
+	GetMetricByID(id string) (models.Metric, error)
 	SaveMetric(metric models.Metric) error
-	DeleteMetricById(id string) error
+	DeleteMetricByID(id string) error
 	FindAll() ([]models.Metric, error)
 }

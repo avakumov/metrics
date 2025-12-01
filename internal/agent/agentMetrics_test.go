@@ -32,7 +32,7 @@ func TestMemStatsCollector_Collect(t *testing.T) {
 	// Проверяем наличие всех ожидаемых метрик
 	metricMap := make(map[string]bool)
 	for _, metric := range metrics1 {
-		metricMap[metric.Id] = true
+		metricMap[metric.ID] = true
 	}
 
 	for _, expected := range expectedMetrics {

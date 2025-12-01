@@ -49,7 +49,7 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 
 	list := make([]string, 0)
 	for _, m := range metrics {
-		line := fmt.Sprintf("%s = %f", m.Id, *m.Value)
+		line := fmt.Sprintf("%s = %f", m.ID, *m.Value)
 		list = append(list, line)
 	}
 
@@ -117,10 +117,10 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	//TODO переписать конвертер
-	value, err := strconv.ParseFloat(metricValue, 64)
+	value, _ := strconv.ParseFloat(metricValue, 64)
 
 	h.metricService.SaveMetric(models.Metric{
-		Id:    metricName,
+		ID:    metricName,
 		MType: metricType,
 		Value: &value,
 		// Delta *int64   `json:"delta,omitempty"`
