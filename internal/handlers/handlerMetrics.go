@@ -42,10 +42,9 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 	rw.WriteHeader(http.StatusOK)
 	switch metric.MType {
 	case "gauge":
-		io.WriteString(rw, fmt.Sprintf("%f", *metric.Value))
+		io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
 	case "counter":
 		io.WriteString(rw, fmt.Sprintf("%d", int64(*metric.Value)))
-
 	}
 }
 
@@ -62,7 +61,9 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 			list = append(list, fmt.Sprintf("%s = %d", m.ID, int64(*m.Value)))
 		}
 		if m.MType == "gauge" {
-			list = append(list, fmt.Sprintf("%s = %f", m.ID, *m.Value))
+			//remove zeros
+			valueWithoutZeros := strconv.FormatFloat(*m.Value, 'f', -1, 64)
+			list = append(list, fmt.Sprintf("%s = %s", m.ID, valueWithoutZeros))
 		}
 	}
 
@@ -81,12 +82,6 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
-	//contentType := r.Header.Get("Content-Type")
-	// if contentType != "text/plain" {
-	// 	w.WriteHeader(http.StatusMethodNotAllowed)
-	// 	return
-	// }
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	fmt.Println(r.URL.Path)
@@ -140,7 +135,7 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "invalid guege value", http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("Gauge: %s = %f\n", metricName, value)
+		fmt.Printf("Gauge: %s = %g\n", metricName, value)
 	default:
 		http.Error(w, "unknown metric type", http.StatusBadRequest)
 		return
