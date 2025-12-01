@@ -156,4 +156,3 @@ func TestUpdateMetricHandler(t *testing.T) {
 		})
 	}
 }
-

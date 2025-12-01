@@ -11,7 +11,6 @@ import (
 
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/service"
-	"github.com/avakumov/metrics/internal/utils"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -26,6 +25,10 @@ func NewMetricHandler(metricService service.MetricService) *MetricHandler {
 func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request) {
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
+
+	fmt.Printf("metric name: %s\n", metricName)
+	fmt.Printf("metric type: %s\n", metricType)
+
 	metric, err := h.metricService.GetMetric(metricName)
 	if err != nil {
 		http.Error(rw, "Not found metric", http.StatusNotFound)
@@ -37,7 +40,13 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
-	io.WriteString(rw, fmt.Sprintf("%f", *metric.Value))
+	switch metric.MType {
+	case "gauge":
+		io.WriteString(rw, fmt.Sprintf("%f", *metric.Value))
+	case "counter":
+		io.WriteString(rw, fmt.Sprintf("%d", int64(*metric.Value)))
+
+	}
 }
 
 func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
@@ -49,8 +58,12 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 
 	list := make([]string, 0)
 	for _, m := range metrics {
-		line := fmt.Sprintf("%s = %f", m.ID, *m.Value)
-		list = append(list, line)
+		if m.MType == "counter" {
+			list = append(list, fmt.Sprintf("%s = %d", m.ID, int64(*m.Value)))
+		}
+		if m.MType == "gauge" {
+			list = append(list, fmt.Sprintf("%s = %f", m.ID, *m.Value))
+		}
 	}
 
 	sort.Strings(list)
@@ -76,7 +89,7 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
-	//	fmt.Println(r.URL.Path)
+	fmt.Println(r.URL.Path)
 
 	if len(pathParts) < 3 {
 		http.Error(w, "wrong path", http.StatusBadRequest)
@@ -111,11 +124,28 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	err := utils.CheckMetric(metricType, metricName, metricValue)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+
+	switch metricType {
+	case "counter":
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid counter value", http.StatusBadRequest)
+			return
+		}
+		fmt.Printf("Counter: %s = %d \n", metricValue, value)
+
+	case "gauge":
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			http.Error(w, "invalid guege value", http.StatusBadRequest)
+			return
+		}
+		fmt.Printf("Gauge: %s = %f\n", metricName, value)
+	default:
+		http.Error(w, "unknown metric type", http.StatusBadRequest)
 		return
 	}
+
 	//TODO переписать конвертер
 	value, _ := strconv.ParseFloat(metricValue, 64)
 

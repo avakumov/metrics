@@ -34,33 +34,34 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 	c.metricsLock.Lock()
 
 	c.metrics = []models.Metric{
-		{ID: models.Alloc, Value: utils.Float64Ptr(m.Alloc)},
-		{ID: "BuckHashSys", Value: utils.Float64Ptr(m.BuckHashSys)},
-		{ID: "Frees", Value: utils.Float64Ptr(m.Frees)},
-		{ID: "GCCPUFraction", Value: utils.Float64Ptr(m.GCCPUFraction)},
-		{ID: "GCSys", Value: utils.Float64Ptr(m.GCSys)},
-		{ID: "HeapAlloc", Value: utils.Float64Ptr(m.HeapAlloc)},
-		{ID: "HeapIdle", Value: utils.Float64Ptr(m.HeapIdle)},
-		{ID: "HeapInuse", Value: utils.Float64Ptr(m.HeapInuse)},
-		{ID: "HeapObjects", Value: utils.Float64Ptr(m.HeapObjects)},
-		{ID: "HeapReleased", Value: utils.Float64Ptr(m.HeapReleased)},
-		{ID: "HeapSys", Value: utils.Float64Ptr(m.HeapSys)},
-		{ID: "LastGC", Value: utils.Float64Ptr(m.LastGC)},
-		{ID: "Lookups", Value: utils.Float64Ptr(m.Lookups)},
-		{ID: "MCacheInuse", Value: utils.Float64Ptr(m.MCacheInuse)},
-		{ID: "MCacheSys", Value: utils.Float64Ptr(m.MCacheSys)},
-		{ID: "MSpanInuse", Value: utils.Float64Ptr(m.MSpanInuse)},
-		{ID: "MSpanSys", Value: utils.Float64Ptr(m.MSpanSys)},
-		{ID: "Mallocs", Value: utils.Float64Ptr(m.Mallocs)},
-		{ID: "NextGC", Value: utils.Float64Ptr(m.NextGC)},
-		{ID: "NumForcedGC", Value: utils.Float64Ptr(m.NumForcedGC)},
-		{ID: "NumGC", Value: utils.Float64Ptr(m.NumGC)},
-		{ID: "OtherSys", Value: utils.Float64Ptr(m.OtherSys)},
-		{ID: "PauseTotalNs", Value: utils.Float64Ptr(m.PauseTotalNs)},
-		{ID: "StackInuse", Value: utils.Float64Ptr(m.StackInuse)},
-		{ID: "StackSys", Value: utils.Float64Ptr(m.StackSys)},
-		{ID: "Sys", Value: utils.Float64Ptr(m.Sys)},
-		{ID: "TotalAlloc", Value: utils.Float64Ptr(m.TotalAlloc)},
+		{ID: models.Alloc, MType: "gauge", Value: utils.Float64Ptr(m.Alloc)},
+		{ID: "BuckHashSys", MType: "gauge", Value: utils.Float64Ptr(m.BuckHashSys)},
+		{ID: "Frees", MType: "gauge", Value: utils.Float64Ptr(m.Frees)},
+		{ID: "GCCPUFraction", MType: "gauge", Value: utils.Float64Ptr(m.GCCPUFraction)},
+		{ID: "GCSys", MType: "gauge", Value: utils.Float64Ptr(m.GCSys)},
+		{ID: "HeapAlloc", MType: "gauge", Value: utils.Float64Ptr(m.HeapAlloc)},
+		{ID: "HeapIdle", MType: "gauge", Value: utils.Float64Ptr(m.HeapIdle)},
+		{ID: "HeapInuse", MType: "gauge", Value: utils.Float64Ptr(m.HeapInuse)},
+		{ID: "HeapObjects", MType: "gauge", Value: utils.Float64Ptr(m.HeapObjects)},
+		{ID: "HeapReleased", MType: "gauge", Value: utils.Float64Ptr(m.HeapReleased)},
+		{ID: "HeapSys", MType: "gauge", Value: utils.Float64Ptr(m.HeapSys)},
+		{ID: "LastGC", MType: "gauge", Value: utils.Float64Ptr(m.LastGC)},
+		{ID: "Lookups", MType: "gauge", Value: utils.Float64Ptr(m.Lookups)},
+		{ID: "MCacheInuse", MType: "gauge", Value: utils.Float64Ptr(m.MCacheInuse)},
+		{ID: "MCacheSys", MType: "gauge", Value: utils.Float64Ptr(m.MCacheSys)},
+		{ID: "MSpanInuse", MType: "gauge", Value: utils.Float64Ptr(m.MSpanInuse)},
+		{ID: "MSpanSys", MType: "gauge", Value: utils.Float64Ptr(m.MSpanSys)},
+		{ID: "Mallocs", MType: "gauge", Value: utils.Float64Ptr(m.Mallocs)},
+		{ID: "NextGC", MType: "gauge", Value: utils.Float64Ptr(m.NextGC)},
+		{ID: "NumForcedGC", MType: "gauge", Value: utils.Float64Ptr(m.NumForcedGC)},
+		{ID: "NumGC", MType: "gauge", Value: utils.Float64Ptr(m.NumGC)},
+		{ID: "OtherSys", MType: "gauge", Value: utils.Float64Ptr(m.OtherSys)},
+		{ID: "PauseTotalNs", MType: "gauge", Value: utils.Float64Ptr(m.PauseTotalNs)},
+		{ID: "StackInuse", MType: "gauge", Value: utils.Float64Ptr(m.StackInuse)},
+		{ID: "StackSys", MType: "gauge", Value: utils.Float64Ptr(m.StackSys)},
+		{ID: "Sys", MType: "gauge", Value: utils.Float64Ptr(m.Sys)},
+		{ID: "TotalAlloc", MType: "gauge", Value: utils.Float64Ptr(m.TotalAlloc)},
+		{ID: "test", MType: "counter", Value: utils.Float64Ptr(123)},
 	}
 	c.RandomValue = rand.Int64()
 	c.count++
@@ -75,10 +76,14 @@ func (c *MemStatsCollector) SendMetrics() {
 	client := c.restyClient
 
 	for _, metric := range c.metrics {
+		metricValue := fmt.Sprintf("%f", *metric.Value)
+		if metric.MType == "counter" {
+			metricValue = fmt.Sprintf("%d", int64(*metric.Value))
+		}
 		params := map[string]string{
-			"typeMetric":  "gauge",
+			"typeMetric":  metric.MType,
 			"metricID":    metric.ID,
-			"metricValue": fmt.Sprintf("%f", *metric.Value),
+			"metricValue": metricValue,
 		}
 
 		resp, err := client.R().
