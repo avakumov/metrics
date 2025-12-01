@@ -23,10 +23,14 @@ func MetricsRouter() chi.Router {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", metricHandler.GetAllHandler)
 		r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetricHandler)
+		//для того чтобы отловить пустое значение метрики
+		r.Post("/update/{metricType}/", metricHandler.UpdateMetricHandler)
 		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetricHandler)
+
+		//на все не найденные отвечать кодом 400
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+
 			w.WriteHeader(http.StatusBadRequest) // 400
-			w.Write([]byte("Bad Request"))
 		})
 	})
 	return r

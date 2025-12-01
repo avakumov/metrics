@@ -88,6 +88,7 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Metric types is gauge or counter", http.StatusBadRequest)
 		return
 	}
+
 	if metricName == "" {
 		http.Error(w, "Not found type, name, value", http.StatusNotFound)
 		return

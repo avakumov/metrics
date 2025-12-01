@@ -116,36 +116,45 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 		//считывание метрик
 		{
-			name:   "Get metric",
-			method: http.MethodGet,
-			path:   "/value/counter/testCounter",
-			//contentType:    "text/plain",
+			name:             "Get metric",
+			method:           http.MethodGet,
+			path:             "/value/counter/testCounter",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "1",
 		},
 
 		{
-			name:   "Valid counter metric +3",
-			method: http.MethodPost,
-			path:   "/update/counter/testCounter/3",
-			//contentType:    "text/plain",
+			name:           "Valid counter metric +3",
+			method:         http.MethodPost,
+			path:           "/update/counter/testCounter/3",
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name:   "Get metric",
-			method: http.MethodGet,
-			path:   "/value/counter/testCounter",
-			//contentType:    "text/plain",
+			name:             "Get metric",
+			method:           http.MethodGet,
+			path:             "/value/counter/testCounter",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "4",
 		},
 		{
-			name:   "Get metric with value",
-			method: http.MethodGet,
-			path:   "/value/gauge/testGauge",
-			//contentType:    "text/plain",
+			name:             "Get metric with value",
+			method:           http.MethodGet,
+			path:             "/value/gauge/testGauge",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "1.5",
+		},
+
+		{
+			name:           "Post with empty counter name",
+			method:         http.MethodPost,
+			path:           "/update/counter/",
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "Post with empty gauge name",
+			method:         http.MethodPost,
+			path:           "/update/gauge/",
+			expectedStatus: http.StatusNotFound,
 		},
 	}
 
