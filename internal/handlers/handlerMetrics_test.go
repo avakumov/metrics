@@ -40,20 +40,20 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 
 		// Тесты на неправильный Content-Type
-		{
-			name:           "Wrong content type",
-			method:         http.MethodPost,
-			path:           "/update/counter/testCounter/1",
-			contentType:    "application/json",
-			expectedStatus: http.StatusMethodNotAllowed,
-		},
-		{
-			name:           "Empty content type",
-			method:         http.MethodPost,
-			path:           "/update/counter/testCounter/1",
-			contentType:    "",
-			expectedStatus: http.StatusMethodNotAllowed,
-		},
+		// {
+		// 	name:           "Wrong content type",
+		// 	method:         http.MethodPost,
+		// 	path:           "/update/counter/testCounter/1",
+		// 	contentType:    "application/json",
+		// 	expectedStatus: http.StatusMethodNotAllowed,
+		// },
+		// {
+		// 	name:           "Empty content type",
+		// 	method:         http.MethodPost,
+		// 	path:           "/update/counter/testCounter/1",
+		// 	contentType:    "",
+		// 	expectedStatus: http.StatusMethodNotAllowed,
+		// },
 
 		// Тесты на неправильный путь
 		{
@@ -114,10 +114,10 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 		// Тесты на валидные пути
 		{
-			name:           "Valid counter metric",
-			method:         http.MethodPost,
-			path:           "/update/counter/testCounter/1",
-			contentType:    "text/plain",
+			name:   "Valid counter metric",
+			method: http.MethodPost,
+			path:   "/update/counter/testCounter/1",
+			//contentType:    "text/plain",
 			expectedStatus: http.StatusOK,
 		},
 		{

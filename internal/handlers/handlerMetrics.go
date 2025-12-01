@@ -82,11 +82,11 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	contentType := r.Header.Get("Content-Type")
-	if contentType != "text/plain" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
+	//contentType := r.Header.Get("Content-Type")
+	// if contentType != "text/plain" {
+	// 	w.WriteHeader(http.StatusMethodNotAllowed)
+	// 	return
+	// }
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	fmt.Println(r.URL.Path)
