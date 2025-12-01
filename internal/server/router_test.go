@@ -1,8 +1,9 @@
-package handlers
+package router
 
 import (
-	"github.com/avakumov/metrics/internal/repository"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,11 +11,12 @@ import (
 
 func TestUpdateMetricHandler(t *testing.T) {
 	tests := []struct {
-		name           string
-		method         string
-		path           string
-		contentType    string
-		expectedStatus int
+		name             string
+		method           string
+		path             string
+		contentType      string
+		expectedStatus   int
+		expectedResponse string
 	}{
 		// Тесты на неподдерживаемые HTTP методы
 		{
@@ -38,22 +40,6 @@ func TestUpdateMetricHandler(t *testing.T) {
 			contentType:    "text/plain",
 			expectedStatus: http.StatusMethodNotAllowed,
 		},
-
-		// Тесты на неправильный Content-Type
-		// {
-		// 	name:           "Wrong content type",
-		// 	method:         http.MethodPost,
-		// 	path:           "/update/counter/testCounter/1",
-		// 	contentType:    "application/json",
-		// 	expectedStatus: http.StatusMethodNotAllowed,
-		// },
-		// {
-		// 	name:           "Empty content type",
-		// 	method:         http.MethodPost,
-		// 	path:           "/update/counter/testCounter/1",
-		// 	contentType:    "",
-		// 	expectedStatus: http.StatusMethodNotAllowed,
-		// },
 
 		// Тесты на неправильный путь
 		{
@@ -127,32 +113,69 @@ func TestUpdateMetricHandler(t *testing.T) {
 			contentType:    "text/plain",
 			expectedStatus: http.StatusOK,
 		},
+
+		//считывание метрик
+		{
+			name:   "Get metric",
+			method: http.MethodGet,
+			path:   "/value/counter/testCounter",
+			//contentType:    "text/plain",
+			expectedStatus:   http.StatusOK,
+			expectedResponse: "1",
+		},
+
+		{
+			name:   "Valid counter metric +3",
+			method: http.MethodPost,
+			path:   "/update/counter/testCounter/3",
+			//contentType:    "text/plain",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:   "Get metric",
+			method: http.MethodGet,
+			path:   "/value/counter/testCounter",
+			//contentType:    "text/plain",
+			expectedStatus:   http.StatusOK,
+			expectedResponse: "4",
+		},
+		{
+			name:   "Get metric with value",
+			method: http.MethodGet,
+			path:   "/value/gauge/testGauge",
+			//contentType:    "text/plain",
+			expectedStatus:   http.StatusOK,
+			expectedResponse: "1.5",
+		},
 	}
 
-	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := NewMetricHandler(metricService)
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req, err := http.NewRequest(tt.method, tt.path, nil)
-			if err != nil {
-				t.Fatalf("Could not create request: %v", err)
-			}
+	r := MetricsRouter()
+	ts := httptest.NewServer(r)
+	defer ts.Close()
 
-			if tt.contentType != "" {
-				req.Header.Set("Content-Type", tt.contentType)
-			}
-
-			rr := httptest.NewRecorder()
-			handler := http.HandlerFunc(metricHandler.UpdateMetricHandler)
-
-			handler.ServeHTTP(rr, req)
-
-			if status := rr.Code; status != tt.expectedStatus {
-				t.Errorf("Handler returned wrong status code: got %v want %v",
-					status, tt.expectedStatus)
+	for _, v := range tests {
+		t.Run(v.name, func(t *testing.T) {
+			resp, body := testRequest(t, ts, v.method, v.path)
+			assert.Equal(t, v.expectedStatus, resp.StatusCode)
+			if v.expectedResponse != "" {
+				assert.Equal(t, v.expectedResponse, body)
 			}
 
 		})
 	}
+}
+
+func testRequest(t *testing.T, ts *httptest.Server, method,
+	path string) (*http.Response, string) {
+	req, err := http.NewRequest(method, ts.URL+path, nil)
+	require.NoError(t, err)
+
+	resp, err := ts.Client().Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp, string(respBody)
 }

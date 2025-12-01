@@ -12,7 +12,6 @@ func TestMemStatsCollector_Collect(t *testing.T) {
 	// Вызываем Collect несколько раз для проверки
 	metrics1 := collector.Collect()
 	time.Sleep(10 * time.Millisecond) // Даем время для изменения метрик
-	metrics2 := collector.Collect()
 
 	// Проверяем, что возвращается непустой слайс
 	if len(metrics1) == 0 {
@@ -41,23 +40,6 @@ func TestMemStatsCollector_Collect(t *testing.T) {
 		}
 	}
 
-	// Проверяем, что значения метрик различаются между вызовами (кроме некоторых)
-	differentFound := false
-	for i := range metrics1 {
-		if metrics1[i].Value != metrics2[i].Value {
-			differentFound = true
-			break
-		}
-	}
-
-	if !differentFound {
-		t.Log("Metric values are the same between calls (this might be normal in test environment)")
-	}
-
-	// Проверяем обновление внутреннего состояния
-	if collector.count != 2 {
-		t.Errorf("Expected count to be 2, got %d", collector.count)
-	}
 }
 
 func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
@@ -79,8 +61,4 @@ func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
 
 	wg.Wait()
 
-	// Проверяем, что счетчик обновился правильно
-	if collector.count != iterations {
-		t.Errorf("Expected count %d, got %d", iterations, collector.count)
-	}
 }

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"runtime"
 	"sync"
 
@@ -15,8 +14,6 @@ import (
 type MemStatsCollector struct {
 	metricsLock sync.Mutex
 	metrics     []models.Metric
-	count       int
-	RandomValue int64
 	restyClient *resty.Client
 }
 
@@ -63,9 +60,6 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 		{ID: "TotalAlloc", MType: "gauge", Value: utils.Float64Ptr(m.TotalAlloc)},
 		{ID: "test", MType: "counter", Value: utils.Float64Ptr(123)},
 	}
-	c.RandomValue = rand.Int64()
-	c.count++
-
 	c.metricsLock.Unlock()
 	return c.metrics
 }

@@ -26,8 +26,8 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
 
-	fmt.Printf("metric name: %s\n", metricName)
-	fmt.Printf("metric type: %s\n", metricType)
+	//fmt.Printf("metric name: %s\n", metricName)
+	//fmt.Printf("metric type: %s\n", metricType)
 
 	metric, err := h.metricService.GetMetric(metricName)
 	if err != nil {
@@ -40,6 +40,7 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
+
 	switch metric.MType {
 	case "gauge":
 		io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
@@ -78,45 +79,22 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
-	if http.MethodPost != r.Method {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+
+	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
+	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
+	metricValue := strings.ToLower(chi.URLParam(r, "metricValue"))
+
+	if metricType != models.Counter && metricType != models.Gauge {
+		http.Error(w, "Metric types is gauge or counter", http.StatusBadRequest)
 		return
 	}
-
-	pathParts := strings.Split(r.URL.Path, "/")
-	fmt.Println(r.URL.Path)
-
-	if len(pathParts) < 3 {
-		http.Error(w, "wrong path", http.StatusBadRequest)
-		return
-	}
-
-	if pathParts[1] != "update" {
-		http.Error(w, "Invalid path format: use first /update/", http.StatusBadRequest)
-		return
-	}
-
-	if pathParts[2] != "counter" && pathParts[2] != "gauge" {
-		http.Error(w, "Invalid path format: use first /update/", http.StatusBadRequest)
-		return
-	}
-
-	if len(pathParts) == 4 && pathParts[3] == "" {
+	if metricName == "" {
 		http.Error(w, "Not found type, name, value", http.StatusNotFound)
 		return
 	}
 
-	if len(pathParts) != 5 {
-		http.Error(w, "Invalid path format", http.StatusBadRequest)
-		return
-	}
-
-	metricType := strings.ToLower(pathParts[2])
-	metricName := strings.ToLower(pathParts[3])
-	metricValue := strings.ToLower(pathParts[4])
-
-	if metricName == "" {
-		w.WriteHeader(http.StatusNotFound)
+	if metricValue == "" {
+		http.Error(w, "invalid value", http.StatusBadRequest)
 		return
 	}
 
@@ -141,24 +119,20 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	//TODO переписать конвертер
 	value, _ := strconv.ParseFloat(metricValue, 64)
+	if metricType == models.Counter {
+		existedMetric, err := h.metricService.GetMetric(metricName)
+		if err == nil {
+			value += *existedMetric.Value
+		}
+
+	}
 
 	h.metricService.SaveMetric(models.Metric{
 		ID:    metricName,
 		MType: metricType,
 		Value: &value,
-		// Delta *int64   `json:"delta,omitempty"`
-		// Hash  string   `json:"hash,omitempty"`
 	})
-
-	mets, err := h.metricService.GetAllMetric()
-	if err != nil {
-		fmt.Printf("Не могу прочитать данные %s\n", metricName)
-	}
-	for _, met := range mets {
-		fmt.Printf("Cохранена метрика %v\n", met)
-	}
 
 	w.WriteHeader(http.StatusOK)
 
