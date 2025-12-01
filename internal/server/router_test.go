@@ -156,6 +156,10 @@ func TestUpdateMetricHandler(t *testing.T) {
 	for _, v := range tests {
 		t.Run(v.name, func(t *testing.T) {
 			resp, body := testRequest(t, ts, v.method, v.path)
+			// Используем Cleanup для гарантированного закрытия
+			t.Cleanup(func() {
+				resp.Body.Close()
+			})
 			assert.Equal(t, v.expectedStatus, resp.StatusCode)
 			if v.expectedResponse != "" {
 				assert.Equal(t, v.expectedResponse, body)
