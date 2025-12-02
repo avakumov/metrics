@@ -18,9 +18,11 @@ type MemStatsCollector struct {
 }
 
 // NewMemStatsCollector создает новый сборщик метрик
-func NewMemStatsCollector() *MemStatsCollector {
+func NewMemStatsCollector(url string) *MemStatsCollector {
+	client := resty.New()
+	client.SetBaseURL(url)
 	return &MemStatsCollector{
-		restyClient: resty.New(),
+		restyClient: client,
 	}
 }
 
@@ -83,7 +85,7 @@ func (c *MemStatsCollector) SendMetrics() {
 		resp, err := client.R().
 			SetHeader("Content-Type", "text/plain").
 			SetPathParams(params).
-			Post("http://localhost:8080/update/{typeMetric}/{metricID}/{metricValue}")
+			Post("/update/{typeMetric}/{metricID}/{metricValue}")
 
 		if err != nil {
 			fmt.Printf("▶️  REQUEST ERROR: %v\n", err)

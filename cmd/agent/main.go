@@ -1,20 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"github.com/avakumov/metrics/internal/agent"
+	"github.com/avakumov/metrics/internal/agent/config"
 	"time"
 )
 
-var pollInterval = 2
-var reportInterval = 10
-
 func main() {
-	collector := agent.NewMemStatsCollector()
+	options := config.GetOptions()
+	url := fmt.Sprintf("http://%s:%d", options.Host, options.Port)
 
-	collectTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	collector := agent.NewMemStatsCollector(url)
+
+	collectTicker := time.NewTicker(time.Duration(options.PollInterval) * time.Second)
 	defer collectTicker.Stop()
 
-	sendTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	sendTicker := time.NewTicker(time.Duration(options.ReportInterval) * time.Second)
 	defer sendTicker.Stop()
 
 	for {
