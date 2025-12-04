@@ -2,18 +2,12 @@ package router
 
 import (
 	"github.com/avakumov/metrics/internal/handlers"
-	"github.com/avakumov/metrics/internal/repository"
-	"github.com/avakumov/metrics/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"net/http"
 )
 
-func MetricsRouter() chi.Router {
-
-	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := handlers.NewMetricHandler(metricService)
+func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r := chi.NewRouter()
 
@@ -29,7 +23,6 @@ func MetricsRouter() chi.Router {
 
 		//на все не найденные отвечать кодом 400
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-
 			w.WriteHeader(http.StatusBadRequest) // 400
 		})
 	})

@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"fmt"
+	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -18,6 +19,16 @@ type MetricHandler struct {
 	metricService service.MetricService
 }
 
+type Metric struct {
+	Name  string
+	Value string
+}
+type PageData struct {
+	Metrics []Metric
+	Header  string
+	Title   string
+}
+
 func NewMetricHandler(metricService service.MetricService) *MetricHandler {
 	return &MetricHandler{metricService: metricService}
 }
@@ -25,9 +36,6 @@ func NewMetricHandler(metricService service.MetricService) *MetricHandler {
 func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request) {
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
-
-	//fmt.Printf("metric name: %s\n", metricName)
-	//fmt.Printf("metric type: %s\n", metricType)
 
 	metric, err := h.metricService.GetMetric(metricName)
 	if err != nil {
@@ -41,12 +49,7 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 	}
 	rw.WriteHeader(http.StatusOK)
 
-	switch metric.MType {
-	case "gauge":
-		io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
-	case "counter":
-		io.WriteString(rw, fmt.Sprintf("%d", int64(*metric.Value)))
-	}
+	io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
 }
 
 func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
@@ -56,26 +59,27 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list := make([]string, 0)
+	data := PageData{
+		Header: "Metrics",
+		Title:  "All metrics",
+	}
 	for _, m := range metrics {
-		if m.MType == "counter" {
-			list = append(list, fmt.Sprintf("%s = %d", m.ID, int64(*m.Value)))
-		}
-		if m.MType == "gauge" {
-			//remove zeros
-			valueWithoutZeros := strconv.FormatFloat(*m.Value, 'f', -1, 64)
-			list = append(list, fmt.Sprintf("%s = %s", m.ID, valueWithoutZeros))
-		}
+
+		data.Metrics = append(data.Metrics, Metric{
+			Name:  m.ID,
+			Value: strconv.FormatFloat(*m.Value, 'f', -1, 64),
+		})
 	}
 
-	sort.Strings(list)
+	sort.Slice(data.Metrics, func(i, j int) bool {
+		return data.Metrics[i].Name < data.Metrics[j].Name
+	})
 
-	for i, l := range list {
-		list[i] = "<div>" + l + "</div>"
-	}
+	tmpl := template.Must(template.ParseFiles("../../templates/allMetrics.html"))
+	tmpl.Execute(rw, data)
+
 	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-	io.WriteString(rw, strings.Join(list, "\n"))
 }
 
 func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +110,7 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "invalid counter value", http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("Counter: %s = %d \n", metricValue, value)
+		log.Printf("Counter: %s = %d \n", metricValue, value)
 
 	case "gauge":
 		value, err := strconv.ParseFloat(metricValue, 64)
@@ -114,7 +118,7 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 			http.Error(w, "invalid guege value", http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("Gauge: %s = %g\n", metricName, value)
+		log.Printf("Gauge: %s = %g\n", metricName, value)
 	default:
 		http.Error(w, "unknown metric type", http.StatusBadRequest)
 		return

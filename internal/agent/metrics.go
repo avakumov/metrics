@@ -1,8 +1,10 @@
 package agent
 
 import (
-	"fmt"
+	"log"
+	"math/rand"
 	"runtime"
+	"strconv"
 	"sync"
 
 	"github.com/avakumov/metrics/internal/models"
@@ -12,7 +14,7 @@ import (
 
 // MemStatsCollector собирает и управляет метриками
 type MemStatsCollector struct {
-	metricsLock sync.Mutex
+	mu          sync.Mutex
 	metrics     []models.Metric
 	restyClient *resty.Client
 }
@@ -30,9 +32,8 @@ func NewMemStatsCollector(url string) *MemStatsCollector {
 func (c *MemStatsCollector) Collect() []models.Metric {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	c.metricsLock.Lock()
 
-	c.metrics = []models.Metric{
+	metrics := []models.Metric{
 		{ID: models.Alloc, MType: "gauge", Value: utils.Float64Ptr(m.Alloc)},
 		{ID: "BuckHashSys", MType: "gauge", Value: utils.Float64Ptr(m.BuckHashSys)},
 		{ID: "Frees", MType: "gauge", Value: utils.Float64Ptr(m.Frees)},
@@ -60,22 +61,28 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 		{ID: "StackSys", MType: "gauge", Value: utils.Float64Ptr(m.StackSys)},
 		{ID: "Sys", MType: "gauge", Value: utils.Float64Ptr(m.Sys)},
 		{ID: "TotalAlloc", MType: "gauge", Value: utils.Float64Ptr(m.TotalAlloc)},
-		{ID: "test", MType: "counter", Value: utils.Float64Ptr(123)},
+		{ID: "RandomValue", MType: "gauge", Value: utils.Float64Ptr(rand.Float64() * 1000.0)},
 	}
-	c.metricsLock.Unlock()
+	setCounter(&metrics)
+
+	c.mu.Lock()
+	c.metrics = metrics
+	c.mu.Unlock()
+
 	return c.metrics
 }
 
 func (c *MemStatsCollector) SendMetrics() {
-	c.metricsLock.Lock()
 
 	client := c.restyClient
 
-	for _, metric := range c.metrics {
-		metricValue := fmt.Sprintf("%f", *metric.Value)
-		if metric.MType == "counter" {
-			metricValue = fmt.Sprintf("%d", int64(*metric.Value))
-		}
+	c.mu.Lock()
+	metrics := make([]models.Metric, len(c.metrics))
+	copy(metrics, c.metrics)
+	c.mu.Unlock()
+
+	for _, metric := range metrics {
+		metricValue := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
 		params := map[string]string{
 			"typeMetric":  metric.MType,
 			"metricID":    metric.ID,
@@ -88,10 +95,23 @@ func (c *MemStatsCollector) SendMetrics() {
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
 
 		if err != nil {
-			fmt.Printf("▶️  REQUEST ERROR: %v\n", err)
+			log.Printf("▶️  REQUEST ERROR: %v\n", err)
 		}
-		fmt.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
+		log.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
 	}
 
-	c.metricsLock.Unlock()
+}
+
+func setCounter(metrics *[]models.Metric) {
+	for i := range *metrics {
+		if (*metrics)[i].ID == "pollcount" {
+			*(*metrics)[i].Value += 1.0
+			return
+		}
+	}
+	*metrics = append(*metrics, models.Metric{
+		ID:    "pollcount",
+		MType: "counter",
+		Value: utils.Float64Ptr(1.0),
+	})
 }

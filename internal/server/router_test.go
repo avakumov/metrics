@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/avakumov/metrics/internal/handlers"
+	"github.com/avakumov/metrics/internal/repository"
+	"github.com/avakumov/metrics/internal/service"
 )
 
 func TestUpdateMetricHandler(t *testing.T) {
@@ -158,7 +162,10 @@ func TestUpdateMetricHandler(t *testing.T) {
 		},
 	}
 
-	r := MetricsRouter()
+	metricsRepo := repository.NewMemoryRepository()
+	metricService := service.NewMetricService(metricsRepo)
+	metricHandler := handlers.NewMetricHandler(metricService)
+	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
