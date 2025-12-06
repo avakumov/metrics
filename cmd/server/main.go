@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/avakumov/metrics/internal/handlers"
@@ -19,5 +20,8 @@ func main() {
 	metricService := service.NewMetricService(metricsRepo)
 	metricHandler := handlers.NewMetricHandler(metricService)
 
-	http.ListenAndServe(port, router.MetricsRouter(metricHandler))
+	err := http.ListenAndServe(port, router.MetricsRouter(metricHandler))
+	if err != nil {
+		log.Printf("Failed to start metrics server on port %s: %v", port, err)
+	}
 }

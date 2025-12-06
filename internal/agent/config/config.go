@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -23,7 +22,7 @@ func (a Options) String() string {
 func (a *Options) Set(s string) error {
 	hp := strings.Split(s, ":")
 	if len(hp) != 2 {
-		return errors.New(fmt.Sprintf("need address in a format host:port. recieve: %s", s))
+		return fmt.Errorf("need address in a format host:port. recieve: %s", s)
 	}
 	port, err := strconv.Atoi(hp[1])
 	if err != nil {

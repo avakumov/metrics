@@ -48,7 +48,7 @@ func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
 	iterations := 100
 
 	// Запускаем несколько горутин для конкурентного доступа
-	for i := 0; i < iterations; i++ {
+	for range iterations {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

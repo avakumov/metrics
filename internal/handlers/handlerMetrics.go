@@ -49,7 +49,10 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 	}
 	rw.WriteHeader(http.StatusOK)
 
-	io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	_, err = io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	if err != nil {
+		log.Printf("error WriteString in response %f", *metric.Value)
+	}
 }
 
 func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
@@ -76,7 +79,10 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 	})
 
 	tmpl := template.Must(template.ParseFiles("../../templates/allMetrics.html"))
-	tmpl.Execute(rw, data)
+	err = tmpl.Execute(rw, data)
+	if err != nil {
+		log.Printf("error write data in parsed doc")
+	}
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -132,12 +138,15 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 		}
 
 	}
-
-	h.metricService.SaveMetric(models.Metric{
+	metric := models.Metric{
 		ID:    metricName,
 		MType: metricType,
 		Value: &value,
-	})
+	}
+	err := h.metricService.SaveMetric(metric)
+	if err != nil {
+		log.Printf("error on save metric: %+v", metric)
+	}
 
 	w.WriteHeader(http.StatusOK)
 
