@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -14,14 +13,13 @@ import (
 
 func main() {
 	options := config.GetOptions()
-	port := fmt.Sprintf(":%d", options.Port)
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
 	metricHandler := handlers.NewMetricHandler(metricService)
 
-	err := http.ListenAndServe(port, router.MetricsRouter(metricHandler))
+	err := http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
 	if err != nil {
-		log.Printf("Failed to start metrics server on port %s: %v", port, err)
+		log.Printf("Failed to start metrics server on address %s: %v", options.Address, err)
 	}
 }

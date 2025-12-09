@@ -9,7 +9,7 @@ import (
 
 func main() {
 	options := config.GetOptions()
-	url := fmt.Sprintf("http://%s:%d", options.Host, options.Port)
+	url := fmt.Sprintf("http://%s", options.Address)
 
 	collector := agent.NewMemStatsCollector(url)
 
