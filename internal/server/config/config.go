@@ -3,18 +3,18 @@ package config
 import (
 	"flag"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"log"
 	"strconv"
 	"strings"
 )
 
 type Options struct {
-	Port int
-	Host string
+	Address string `env:"ADDRESS"`
 }
 
 func (a Options) String() string {
-	return fmt.Sprintf("host:%s, port:%d", a.Host, a.Port)
+	return fmt.Sprintf("address:%s", a.Address)
 }
 
 func (a *Options) Set(s string) error {
@@ -22,22 +22,28 @@ func (a *Options) Set(s string) error {
 	if len(hp) != 2 {
 		return fmt.Errorf("need address in a format host:port. recieve: %s", s)
 	}
-	port, err := strconv.Atoi(hp[1])
+	_, err := strconv.Atoi(hp[1])
 	if err != nil {
 		return fmt.Errorf("port [%s] is not integer: %w", hp[1], err)
 	}
-	a.Host = hp[0]
-	a.Port = port
+	a.Address = s
 	return nil
 }
 
 func GetOptions() Options {
 
+	//default options
 	options := Options{
-		Host: "localhost",
-		Port: 8080,
+		Address: "localhost:8080",
 	}
 
+	//options from env
+	err := env.Parse(&options)
+	if err != nil {
+		log.Printf("error parse options from env: %s", err)
+	}
+
+	//options from flags
 	flag.Var(&options, "a", "Server address in format host:port")
 	flag.Parse()
 
