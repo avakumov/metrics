@@ -4,11 +4,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/avakumov/metrics/internal/handlers"
-	"github.com/avakumov/metrics/internal/repository"
-	router "github.com/avakumov/metrics/internal/server"
 	"github.com/avakumov/metrics/internal/server/config"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/avakumov/metrics/internal/server/handlers"
+	"github.com/avakumov/metrics/internal/server/repository"
+	"github.com/avakumov/metrics/internal/server/router"
+	"github.com/avakumov/metrics/internal/server/service"
 )
 
 func main() {

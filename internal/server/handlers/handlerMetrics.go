@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/avakumov/metrics/internal/models"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/avakumov/metrics/internal/server/service"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -78,7 +78,7 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 		return data.Metrics[i].Name < data.Metrics[j].Name
 	})
 
-	tmpl := template.Must(template.ParseFiles("../../templates/allMetrics.html"))
+	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/allMetrics.html"))
 	err = tmpl.Execute(rw, data)
 	if err != nil {
 		log.Printf("error write data in parsed doc")
