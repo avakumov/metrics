@@ -34,6 +34,7 @@ func NewMetricHandler(metricService service.MetricService) *MetricHandler {
 }
 
 func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request) {
+
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
 
@@ -56,6 +57,7 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 }
 
 func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 	metrics, err := h.metricService.GetAllMetric()
 	if err != nil {
 		http.Error(rw, "Not found metrics", http.StatusNotFound)
@@ -79,13 +81,11 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 	})
 
 	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/allMetrics.html"))
+	//Execute добавляет статус 200
 	err = tmpl.Execute(rw, data)
 	if err != nil {
 		log.Printf("error write data in parsed doc")
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 }
 
 func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,4 +150,8 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 
 	w.WriteHeader(http.StatusOK)
 
+}
+
+func (h *MetricHandler) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusBadRequest) // 400
 }

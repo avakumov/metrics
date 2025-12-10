@@ -6,6 +6,7 @@ import (
 
 	"github.com/avakumov/metrics/internal/server/config"
 	"github.com/avakumov/metrics/internal/server/handlers"
+	"github.com/avakumov/metrics/internal/server/logger"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"github.com/avakumov/metrics/internal/server/router"
 	"github.com/avakumov/metrics/internal/server/service"
@@ -13,6 +14,7 @@ import (
 
 func main() {
 	options := config.GetOptions()
+	logger.InitLogger()
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
