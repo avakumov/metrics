@@ -13,16 +13,17 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	//r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(logger.LoggerMiddleware)
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/", logger.WithLogging(metricHandler.GetAllHandler))
-		r.Post("/update/{metricType}/{metricName}/{metricValue}", logger.WithLogging(metricHandler.UpdateMetricHandler))
+		r.Get("/", metricHandler.GetAllHandler)
+		r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetricHandler)
 		//для того чтобы отловить пустое значение метрики
-		r.Post("/update/{metricType}/", logger.WithLogging(metricHandler.UpdateMetricHandler))
-		r.Get("/value/{metricType}/{metricName}", logger.WithLogging(metricHandler.GetMetricHandler))
+		r.Post("/update/{metricType}/", metricHandler.UpdateMetricHandler)
+		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetricHandler)
 
 		//на все не найденные отвечать кодом 400
-		r.NotFound(logger.WithLogging(metricHandler.NotFoundHandler))
+		r.NotFound(metricHandler.NotFoundHandler)
 	})
 	return r
 }

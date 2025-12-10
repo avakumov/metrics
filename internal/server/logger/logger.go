@@ -7,6 +7,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var Log *zap.Logger = zap.NewNop()
+
 type (
 	// берём структуру для хранения сведений об ответе
 	responseData struct {
@@ -23,9 +25,6 @@ type (
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 
-	if r.responseData.status == 0 {
-		r.responseData.status = http.StatusOK // 200
-	}
 	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size // захватываем размер
@@ -36,8 +35,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
 }
-
-var Log *zap.Logger = zap.NewNop()
 
 func InitLogger() {
 	logger, err := zap.NewDevelopment()
@@ -50,19 +47,19 @@ func InitLogger() {
 	Log = logger
 }
 
-func WithLogging(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func LoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		responseData := &responseData{
-			status: 0,
+			status: http.StatusOK, //default 200
 			size:   0,
 		}
 		lw := loggingResponseWriter{
 			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
 			responseData:   responseData,
 		}
-		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
+		next.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
 
 		duration := time.Since(start)
 		sugar := Log.Sugar()
@@ -73,5 +70,5 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 			"duration", duration,
 			"size", responseData.size, // получаем перехваченный размер ответа
 		)
-	}
+	})
 }
