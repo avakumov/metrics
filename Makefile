@@ -41,8 +41,8 @@ lint:
 
 dev-server:
 	@echo "Run dev server ..."
-	go run ./cmd/server/main.go --log=debug
+	go run ./cmd/server/main.go -l=debug
 
 dev-client:
 	@echo "Run dev client ..."
-	go run ./cmd/agent/main.go --log=debug
+	go run ./cmd/agent/main.go -l=debug

@@ -11,7 +11,6 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r := chi.NewRouter()
 
-	//r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(logger.LoggerMiddleware)
 

@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"flag"
 	"net/http"
 	"time"
 
@@ -11,10 +10,7 @@ import (
 
 var Log *zap.Logger = zap.NewNop()
 
-func Init() {
-	var level string
-	flag.StringVar(&level, "log", "info", "Level of logging")
-	flag.Parse()
+func Init(level string) {
 
 	var zapLevel zapcore.Level
 	switch level {

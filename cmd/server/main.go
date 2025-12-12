@@ -13,10 +13,10 @@ import (
 )
 
 func main() {
-	logger.Init()
-	defer logger.Log.Sync()
-
 	options := config.GetOptions()
+
+	logger.Init(options.Level)
+	defer logger.Log.Sync()
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)

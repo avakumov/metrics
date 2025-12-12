@@ -13,6 +13,7 @@ type Options struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	Address        string `env:"ADDRESS"`
+	Level          string
 }
 
 func (a Options) String() string {
@@ -39,6 +40,7 @@ func GetOptions() Options {
 		Address:        "localhost:8080",
 		PollInterval:   2,
 		ReportInterval: 10,
+		Level:          "info",
 	}
 
 	//options from env
@@ -48,7 +50,8 @@ func GetOptions() Options {
 	}
 
 	//options from flags
-	flag.Var(&options, "a", "Server address in format host:port")
+	flag.StringVar(&options.Address, "a", options.Address, "Server address in format host:port")
+	flag.StringVar(&options.Level, "l", options.Level, "Level of logging")
 	flag.IntVar(&options.ReportInterval, "r", options.ReportInterval, "Report interval in seconds")
 	flag.IntVar(&options.PollInterval, "p", options.PollInterval, "Poll interval in seconds")
 

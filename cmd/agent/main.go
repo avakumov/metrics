@@ -11,10 +11,10 @@ import (
 
 func main() {
 
-	logger.Init()
-	defer logger.Log.Sync()
-
 	options := config.GetOptions()
+
+	logger.Init(options.Level)
+	defer logger.Log.Sync()
 
 	logger.Log.Info("metrics client app starting...", zap.String("address", options.Address))
 	collector := agent.NewMemStatsCollector("http://" + options.Address)
