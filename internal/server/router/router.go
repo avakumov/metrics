@@ -1,18 +1,18 @@
 package router
 
 import (
-	"github.com/avakumov/metrics/internal/handlers"
+	"github.com/avakumov/metrics/internal/logger"
+	"github.com/avakumov/metrics/internal/server/handlers"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"net/http"
 )
 
 func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(logger.LoggerMiddleware)
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", metricHandler.GetAllHandler)
@@ -22,9 +22,7 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetricHandler)
 
 		//на все не найденные отвечать кодом 400
-		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest) // 400
-		})
+		r.NotFound(metricHandler.NotFoundHandler)
 	})
 	return r
 }

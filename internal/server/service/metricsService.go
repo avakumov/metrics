@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/avakumov/metrics/internal/models"
-	"github.com/avakumov/metrics/internal/repository"
+	"github.com/avakumov/metrics/internal/server/repository"
 )
 
 type MetricService struct {

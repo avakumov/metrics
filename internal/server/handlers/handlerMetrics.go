@@ -3,16 +3,17 @@ package handlers
 import (
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 
 	"strconv"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/avakumov/metrics/internal/server/service"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type MetricHandler struct {
@@ -34,6 +35,7 @@ func NewMetricHandler(metricService service.MetricService) *MetricHandler {
 }
 
 func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request) {
+
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
 
@@ -48,14 +50,15 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
-
-	_, err = io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	metricString := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+	_, err = io.WriteString(rw, metricString)
 	if err != nil {
-		log.Printf("error WriteString in response %f", *metric.Value)
+		logger.Log.Error("write response error", zap.String("metricValue", metricString), zap.Error(err))
 	}
 }
 
 func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 	metrics, err := h.metricService.GetAllMetric()
 	if err != nil {
 		http.Error(rw, "Not found metrics", http.StatusNotFound)
@@ -78,14 +81,12 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 		return data.Metrics[i].Name < data.Metrics[j].Name
 	})
 
-	tmpl := template.Must(template.ParseFiles("../../templates/allMetrics.html"))
+	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/allMetrics.html"))
+	//Execute добавляет статус 200
 	err = tmpl.Execute(rw, data)
 	if err != nil {
-		log.Printf("error write data in parsed doc")
+		logger.Log.Error("error write data in parsed html file", zap.Error(err))
 	}
-
-	rw.WriteHeader(http.StatusOK)
-	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 }
 
 func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -111,20 +112,18 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 
 	switch metricType {
 	case "counter":
-		value, err := strconv.ParseInt(metricValue, 10, 64)
+		_, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			http.Error(w, "invalid counter value", http.StatusBadRequest)
 			return
 		}
-		log.Printf("Counter: %s = %d \n", metricValue, value)
 
 	case "gauge":
-		value, err := strconv.ParseFloat(metricValue, 64)
+		_, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			http.Error(w, "invalid guege value", http.StatusBadRequest)
 			return
 		}
-		log.Printf("Gauge: %s = %g\n", metricName, value)
 	default:
 		http.Error(w, "unknown metric type", http.StatusBadRequest)
 		return
@@ -145,9 +144,18 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 	}
 	err := h.metricService.SaveMetric(metric)
 	if err != nil {
-		log.Printf("error on save metric: %+v", metric)
+		logger.Log.Error("error on save metric", zap.Error(err))
+	} else {
+		logger.Log.Debug("update metric",
+			zap.String("ID", metricName),
+			zap.String("Type", metricType),
+			zap.Float64("Value", value))
 	}
 
 	w.WriteHeader(http.StatusOK)
 
+}
+
+func (h *MetricHandler) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusBadRequest) // 400
 }
