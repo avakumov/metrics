@@ -3,16 +3,17 @@ package handlers
 import (
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 
 	"strconv"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/server/service"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type MetricHandler struct {
@@ -49,10 +50,10 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 		return
 	}
 	rw.WriteHeader(http.StatusOK)
-
-	_, err = io.WriteString(rw, strconv.FormatFloat(*metric.Value, 'f', -1, 64))
+	metricString := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+	_, err = io.WriteString(rw, metricString)
 	if err != nil {
-		log.Printf("error WriteString in response %f", *metric.Value)
+		logger.Log.Error("write response error", zap.String("metricValue", metricString), zap.Error(err))
 	}
 }
 
@@ -84,7 +85,7 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 	//Execute добавляет статус 200
 	err = tmpl.Execute(rw, data)
 	if err != nil {
-		log.Printf("error write data in parsed doc")
+		logger.Log.Error("error write data in parsed html file", zap.Error(err))
 	}
 }
 
@@ -111,20 +112,18 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 
 	switch metricType {
 	case "counter":
-		value, err := strconv.ParseInt(metricValue, 10, 64)
+		_, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			http.Error(w, "invalid counter value", http.StatusBadRequest)
 			return
 		}
-		log.Printf("Counter: %s = %d \n", metricValue, value)
 
 	case "gauge":
-		value, err := strconv.ParseFloat(metricValue, 64)
+		_, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			http.Error(w, "invalid guege value", http.StatusBadRequest)
 			return
 		}
-		log.Printf("Gauge: %s = %g\n", metricName, value)
 	default:
 		http.Error(w, "unknown metric type", http.StatusBadRequest)
 		return
@@ -145,7 +144,12 @@ func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Reque
 	}
 	err := h.metricService.SaveMetric(metric)
 	if err != nil {
-		log.Printf("error on save metric: %+v", metric)
+		logger.Log.Error("error on save metric", zap.Error(err))
+	} else {
+		logger.Log.Debug("update metric",
+			zap.String("ID", metricName),
+			zap.String("Type", metricType),
+			zap.Float64("Value", value))
 	}
 
 	w.WriteHeader(http.StatusOK)

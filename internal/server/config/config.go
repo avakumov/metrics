@@ -3,10 +3,12 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"log"
 	"strconv"
 	"strings"
+
+	"github.com/avakumov/metrics/internal/logger"
+	"github.com/caarlos0/env/v6"
+	"go.uber.org/zap"
 )
 
 type Options struct {
@@ -40,13 +42,13 @@ func GetOptions() Options {
 	//options from env
 	err := env.Parse(&options)
 	if err != nil {
-		log.Printf("error parse options from env: %s", err)
+		logger.Log.Error("error parse options from env", zap.Error(err))
 	}
 
 	//options from flags
 	flag.Var(&options, "a", "Server address in format host:port")
 	flag.Parse()
 
-	log.Printf("Options: %s\n", options)
+	logger.Log.Info("Start server options", zap.String("Address", options.Address))
 	return options
 }

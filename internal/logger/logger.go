@@ -1,13 +1,51 @@
 package logger
 
 import (
+	"flag"
 	"net/http"
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var Log *zap.Logger = zap.NewNop()
+
+func Init() {
+	var level string
+	flag.StringVar(&level, "log", "info", "Level of logging")
+	flag.Parse()
+
+	var zapLevel zapcore.Level
+	switch level {
+	case "debug":
+		zapLevel = zapcore.DebugLevel
+	case "info":
+		zapLevel = zapcore.InfoLevel
+	case "warn":
+		zapLevel = zapcore.WarnLevel
+	case "error":
+		zapLevel = zapcore.ErrorLevel
+	default:
+		zapLevel = zapcore.InfoLevel
+	}
+
+	var config zap.Config
+	if zapLevel == zapcore.DebugLevel {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		config = zap.NewProductionConfig()
+	}
+	config.Level = zap.NewAtomicLevelAt(zapLevel)
+	logger, err := config.Build()
+
+	if err != nil {
+		panic("logger not init")
+	}
+
+	Log = logger
+}
 
 type (
 	// берём структуру для хранения сведений об ответе
@@ -36,17 +74,6 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func InitLogger() {
-	logger, err := zap.NewDevelopment()
-
-	if err != nil {
-		panic("logger not init")
-	}
-	defer logger.Sync()
-
-	Log = logger
-}
-
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -62,13 +89,12 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
 
 		duration := time.Since(start)
-		sugar := Log.Sugar()
-		sugar.Infoln(
-			"uri", r.RequestURI,
-			"method", r.Method,
-			"status", responseData.status, // получаем перехваченный код статуса ответа
-			"duration", duration,
-			"size", responseData.size, // получаем перехваченный размер ответа
+		Log.Info("REQUEST:",
+			zap.String("uri", r.RequestURI),
+			zap.String("method", r.Method),
+			zap.Int("status", responseData.status), // получаем перехваченный код статуса ответа
+			zap.Duration("duration", duration),
+			zap.Int("size", responseData.size), // получаем перехваченный размер ответа
 		)
 	})
 }

@@ -1,8 +1,8 @@
 package router
 
 import (
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/server/handlers"
-	"github.com/avakumov/metrics/internal/server/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

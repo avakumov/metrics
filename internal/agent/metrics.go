@@ -1,15 +1,16 @@
 package agent
 
 import (
-	"log"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 // MemStatsCollector собирает и управляет метриками
@@ -95,9 +96,9 @@ func (c *MemStatsCollector) SendMetrics() {
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
 
 		if err != nil {
-			log.Printf("▶️  REQUEST ERROR: %v\n", err)
+			logger.Log.Error("request error", zap.Error(err))
 		}
-		log.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
+		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
 	}
 
 }
