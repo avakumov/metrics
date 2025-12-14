@@ -20,6 +20,7 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 		r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 		r.Post("/update/gauge/", metricHandler.NotFound)
 		r.Post("/update/counter/", metricHandler.NotFound)
+		r.Post("/value", metricHandler.GetMetricValues)
 		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 
 		//на все не найденные отвечать кодом 400
