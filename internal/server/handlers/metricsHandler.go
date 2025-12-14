@@ -151,10 +151,10 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	logger.Log.Sugar().Debugf("receive metrics: %+v", simpleMetrics)
 
 	// Проверяем, что запрос не пустой
-	if len(simpleMetrics) == 0 {
-		http.Error(w, "empty metrics array", http.StatusBadRequest)
-		return
-	}
+	// if len(simpleMetrics) == 0 {
+	// 	http.Error(w, "empty metrics array", http.StatusBadRequest)
+	// 	return
+	// }
 
 	result := []simpleMetric{}
 	//получаем метрику из хранилаща
@@ -182,7 +182,7 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	}
 	// Устанавливаем заголовки и отправляем ответ
 	w.Header().Set("Content-Type", "application/json")
-	//w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(result); err != nil {
 		logger.Log.Error("failed to encode response", zap.Error(err))
 	}
