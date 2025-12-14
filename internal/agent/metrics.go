@@ -111,14 +111,14 @@ func (c *MemStatsCollector) SendMetrics() {
 
 func setCounter(metrics *[]models.Metric) {
 	for i := range *metrics {
-		if (*metrics)[i].ID == "pollcount" {
+		if (*metrics)[i].ID == "PollCount" {
 			*(*metrics)[i].Delta += 1
 			return
 		}
 	}
 	var startCounter int64 = 1
 	*metrics = append(*metrics, models.Metric{
-		ID:    "pollcount",
+		ID:    "PollCount",
 		MType: "counter",
 		Delta: &startCounter,
 	})
