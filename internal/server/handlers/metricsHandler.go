@@ -202,7 +202,6 @@ func getMetricFromRequest(r *http.Request) (models.Metric, error) {
 		}
 		logger.Log.Debug("length body is ", zap.Int("body length", int(contentLen)))
 		logger.Log.Sugar().Debugf("metric recived %+v", metric)
-		logger.Log.Sugar().Debugf("value %f", *metric.Value)
 		return metric, nil
 	}
 	//метрика из url
