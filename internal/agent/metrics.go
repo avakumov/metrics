@@ -116,8 +116,7 @@ func setCounter(metrics *[]models.Metric) {
 			return
 		}
 	}
-	var startCounter int64
-	startCounter = 1
+	var startCounter int64 = 1
 	*metrics = append(*metrics, models.Metric{
 		ID:    "pollcount",
 		MType: "counter",
