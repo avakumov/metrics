@@ -56,6 +56,8 @@ func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 		_, err = io.WriteString(rw, metricString)
 		if err != nil {
 			logger.Log.Error("write response error", zap.String("metricValue", metricString), zap.Error(err))
+			http.Error(rw, "write error", http.StatusInternalServerError)
+			return
 		}
 
 	}
@@ -64,6 +66,8 @@ func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 		_, err = io.WriteString(rw, metricString)
 		if err != nil {
 			logger.Log.Error("write response error", zap.String("metricValue", metricString), zap.Error(err))
+			http.Error(rw, "write error", http.StatusInternalServerError)
+			return
 		}
 
 	}
@@ -104,6 +108,8 @@ func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	err = tmpl.Execute(rw, data)
 	if err != nil {
 		logger.Log.Error("error write data in parsed html file", zap.Error(err))
+		http.Error(rw, "template error", http.StatusInternalServerError)
+		return
 	}
 }
 
@@ -113,9 +119,20 @@ func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	logger.Log.Sugar().Debugf("METRIC: %+v\n", metric)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	if metric.ID == "" {
 		http.Error(w, "Not found type, name, value", http.StatusNotFound)
+		return
+	}
+
+	if metric.Value == nil && metric.MType == models.Gauge {
+		http.Error(w, "requered value not nil", http.StatusBadRequest)
+		return
+	}
+
+	if metric.Delta == nil && metric.MType == models.Counter {
+		http.Error(w, "requered delta not nil", http.StatusBadRequest)
 		return
 	}
 
@@ -140,6 +157,7 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	sM := models.Metric{}
 	if err := json.NewDecoder(r.Body).Decode(&sM); err != nil {
 		http.Error(w, "parsing json error", http.StatusBadRequest)
+		return
 	}
 	defer r.Body.Close()
 	logger.Log.Sugar().Debugf("receive metrics: %+v", sM)
@@ -147,13 +165,21 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	//получаем метрику из хранилаща
 	metric, err := h.metricService.GetMetric(sM.ID)
 	if err != nil {
+		http.Error(w, "not found metric", http.StatusNotFound)
 		logger.Log.Warn("get metric by id", zap.Error(err))
+		return
+	}
+	if metric.MType != sM.MType {
+		http.Error(w, "not found metric", http.StatusNotFound)
+		return
 	}
 	// Устанавливаем заголовки и отправляем ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
 		logger.Log.Error("failed to encode response", zap.Error(err))
+		http.Error(w, "failed to encode response", http.StatusBadRequest)
+		return
 	}
 }
 

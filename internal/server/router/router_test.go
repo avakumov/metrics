@@ -207,6 +207,14 @@ func TestUpdateMetricHandler(t *testing.T) {
 			body:             ` {"id":"testCounter", "type":"counter"}`,
 			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":4}`,
 		},
+		{
+			name:           "Get metric which not exist",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			path:           "/value/",
+			expectedStatus: http.StatusNotFound,
+			body:           ` {"id":"testCounter", "type":"gauge"}`,
+		},
 	}
 
 	metricsRepo := repository.NewMemoryRepository()
