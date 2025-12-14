@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"strings"
 
 	"strconv"
 
@@ -38,8 +37,8 @@ func NewMetricsHandler(metricService service.MetricService) *MetricHandler {
 
 func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 
-	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
-	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
+	metricType := chi.URLParam(r, "metricType")
+	metricName := chi.URLParam(r, "metricName")
 
 	metric, err := h.metricService.GetMetric(metricName)
 	if err != nil {
@@ -177,7 +176,7 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 			result = append(result, simpleMetric{
 				ID:    m.ID,
 				Type:  m.Type,
-				Value: strconv.FormatInt(*metric.Delta, 64),
+				Value: strconv.FormatInt(*metric.Delta, 10),
 			})
 		}
 	}
@@ -214,9 +213,9 @@ func getMetricFromRequest(r *http.Request) (models.Metric, error) {
 		return metric, nil
 	}
 	//метрика из url
-	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
-	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
-	metricValue := strings.ToLower(chi.URLParam(r, "metricValue"))
+	metricName := chi.URLParam(r, "metricName")
+	metricType := chi.URLParam(r, "metricType")
+	metricValue := chi.URLParam(r, "metricValue")
 	switch metricType {
 	case models.Counter:
 		delta, err := strconv.ParseInt(metricValue, 10, 64)

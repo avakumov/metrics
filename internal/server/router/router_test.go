@@ -182,13 +182,22 @@ func TestUpdateMetricHandler(t *testing.T) {
 			body:           "",
 		},
 		{
-			name:             "Post json arrays metrics with id, type",
+			name:             "Post json array with on gauge metric metrics with id, type",
 			method:           http.MethodPost,
 			contentType:      "application/json",
 			path:             "/value",
 			expectedStatus:   http.StatusOK,
-			body:             `[{"id":"testgauge", "type":"gauge"}]`,
-			expectedResponse: `[{"id":"testgauge", "type":"gauge", "value":"1.5"}]`,
+			body:             `[{"id":"testGauge", "type":"gauge"}]`,
+			expectedResponse: `[{"id":"testGauge", "type":"gauge", "value":"1.5"}]`,
+		},
+		{
+			name:             "Post json array with gauge and counter metrics with id, type",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value",
+			expectedStatus:   http.StatusOK,
+			body:             `[{"id":"testGauge", "type":"gauge"}, {"id":"testCounter", "type":"counter"}]`,
+			expectedResponse: `[{"id":"testGauge", "type":"gauge", "value":"1.5"},{"id":"testCounter", "type":"counter", "value":"4"}]`,
 		},
 	}
 
