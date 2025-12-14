@@ -1,17 +1,23 @@
 package main
 
 import (
-	"fmt"
+	"time"
+
 	"github.com/avakumov/metrics/internal/agent"
 	"github.com/avakumov/metrics/internal/agent/config"
-	"time"
+	"github.com/avakumov/metrics/internal/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
-	options := config.GetOptions()
-	url := fmt.Sprintf("http://%s:%d", options.Host, options.Port)
 
-	collector := agent.NewMemStatsCollector(url)
+	options := config.GetOptions()
+
+	logger.Init(options.Level)
+	defer logger.Log.Sync()
+
+	logger.Log.Info("metrics client app starting...", zap.String("address", options.Address))
+	collector := agent.NewMemStatsCollector("http://" + options.Address)
 
 	collectTicker := time.NewTicker(time.Duration(options.PollInterval) * time.Second)
 	defer collectTicker.Stop()

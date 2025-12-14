@@ -1,15 +1,16 @@
 package agent
 
 import (
-	"log"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 // MemStatsCollector собирает и управляет метриками
@@ -82,7 +83,13 @@ func (c *MemStatsCollector) SendMetrics() {
 	c.mu.Unlock()
 
 	for _, metric := range metrics {
-		metricValue := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		var metricValue string
+		if metric.MType == models.Gauge {
+			metricValue = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		}
+		if metric.MType == models.Counter {
+			metricValue = strconv.FormatInt(*metric.Delta, 10)
+		}
 		params := map[string]string{
 			"typeMetric":  metric.MType,
 			"metricID":    metric.ID,
@@ -95,23 +102,24 @@ func (c *MemStatsCollector) SendMetrics() {
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
 
 		if err != nil {
-			log.Printf("▶️  REQUEST ERROR: %v\n", err)
+			logger.Log.Error("request error", zap.Error(err))
 		}
-		log.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
+		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
 	}
 
 }
 
 func setCounter(metrics *[]models.Metric) {
 	for i := range *metrics {
-		if (*metrics)[i].ID == "pollcount" {
-			*(*metrics)[i].Value += 1.0
+		if (*metrics)[i].ID == "PollCount" {
+			*(*metrics)[i].Delta += 1
 			return
 		}
 	}
+	var startCounter int64 = 1
 	*metrics = append(*metrics, models.Metric{
-		ID:    "pollcount",
+		ID:    "PollCount",
 		MType: "counter",
-		Value: utils.Float64Ptr(1.0),
+		Delta: &startCounter,
 	})
 }

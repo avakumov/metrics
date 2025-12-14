@@ -1,16 +1,18 @@
 package router
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/avakumov/metrics/internal/handlers"
-	"github.com/avakumov/metrics/internal/repository"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/avakumov/metrics/internal/server/handlers"
+	"github.com/avakumov/metrics/internal/server/repository"
+	"github.com/avakumov/metrics/internal/server/service"
 )
 
 func TestUpdateMetricHandler(t *testing.T) {
@@ -19,6 +21,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 		method           string
 		path             string
 		contentType      string
+		body             string
 		expectedStatus   int
 		expectedResponse string
 	}{
@@ -29,6 +32,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter/testCounter/1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusMethodNotAllowed,
+			body:           "",
 		},
 		{
 			name:           "PUT method not allowed",
@@ -36,6 +40,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter/testCounter/1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusMethodNotAllowed,
+			body:           "",
 		},
 		{
 			name:           "DELETE method not allowed",
@@ -43,6 +48,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter/testCounter/1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusMethodNotAllowed,
+			body:           "",
 		},
 
 		// Тесты на неправильный путь
@@ -52,6 +58,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 		{
 			name:           "Empty path parts",
@@ -59,6 +66,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "///",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 
 		// Тесты на неправильный формат пути
@@ -68,6 +76,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/wrong/counter/test/1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 		{
 			name:           "Wrong metric type",
@@ -75,6 +84,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/wrongtype/test/1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 
 		// Тесты на неполный путь
@@ -84,6 +94,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter/testCounter",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 		{
 			name:           "Too long path",
@@ -91,6 +102,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter/testCounter/1/extra",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusBadRequest,
+			body:           "",
 		},
 
 		// Тесты на пустое имя метрики
@@ -100,6 +112,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/counter//1",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusNotFound,
+			body:           "",
 		},
 
 		// Тесты на валидные пути
@@ -109,6 +122,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:   "/update/counter/testCounter/1",
 			//contentType:    "text/plain",
 			expectedStatus: http.StatusOK,
+			body:           "",
 		},
 		{
 			name:           "Valid gauge metric",
@@ -116,6 +130,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/update/gauge/testGauge/1.5",
 			contentType:    "text/plain",
 			expectedStatus: http.StatusOK,
+			body:           "",
 		},
 
 		//считывание метрик
@@ -125,6 +140,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:             "/value/counter/testCounter",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "1",
+			body:             "",
 		},
 
 		{
@@ -132,6 +148,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			method:         http.MethodPost,
 			path:           "/update/counter/testCounter/3",
 			expectedStatus: http.StatusOK,
+			body:           "",
 		},
 		{
 			name:             "Get metric",
@@ -139,6 +156,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:             "/value/counter/testCounter",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "4",
+			body:             "",
 		},
 		{
 			name:             "Get metric with value",
@@ -146,6 +164,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:             "/value/gauge/testGauge",
 			expectedStatus:   http.StatusOK,
 			expectedResponse: "1.5",
+			body:             "",
 		},
 
 		{
@@ -153,32 +172,69 @@ func TestUpdateMetricHandler(t *testing.T) {
 			method:         http.MethodPost,
 			path:           "/update/counter/",
 			expectedStatus: http.StatusNotFound,
+			body:           "",
 		},
 		{
 			name:           "Post with empty gauge name",
 			method:         http.MethodPost,
 			path:           "/update/gauge/",
 			expectedStatus: http.StatusNotFound,
+			body:           "",
+		},
+		{
+			name:           "Post json metric by /update/",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			path:           "/update/",
+			expectedStatus: http.StatusOK,
+			body:           `{"id":"testGauge", "type":"gauge", "value":155.5}`,
+		},
+		{
+			name:             "Post json with on gauge metric metrics with id, type",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             `{"id":"testGauge", "type":"gauge"}`,
+			expectedResponse: `{"id":"testGauge", "type":"gauge", "value":155.5}`,
+		},
+		{
+			name:             "Post json with  counter metrics with id, type",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             ` {"id":"testCounter", "type":"counter"}`,
+			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":4}`,
+		},
+		{
+			name:           "Get metric which not exist",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			path:           "/value/",
+			expectedStatus: http.StatusNotFound,
+			body:           ` {"id":"testCounter", "type":"gauge"}`,
 		},
 	}
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := handlers.NewMetricHandler(metricService)
+	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
 	for _, v := range tests {
 		t.Run(v.name, func(t *testing.T) {
-			resp, body := testRequest(t, ts, v.method, v.path)
+			resp, body := testRequest(t, ts, v.method, v.path, strings.NewReader(v.body), v.contentType)
 			// Используем Cleanup для гарантированного закрытия
 			t.Cleanup(func() {
 				resp.Body.Close()
 			})
 			assert.Equal(t, v.expectedStatus, resp.StatusCode)
 			if v.expectedResponse != "" {
-				assert.Equal(t, v.expectedResponse, body)
+				t.Logf("Body: %s", body)
+				assert.JSONEq(t, v.expectedResponse, body)
 			}
 
 		})
@@ -186,9 +242,13 @@ func TestUpdateMetricHandler(t *testing.T) {
 }
 
 func testRequest(t *testing.T, ts *httptest.Server, method,
-	path string) (*http.Response, string) {
-	req, err := http.NewRequest(method, ts.URL+path, nil)
+	path string, body io.Reader, contentType string) (*http.Response, string) {
+	req, err := http.NewRequest(method, ts.URL+path, body)
 	require.NoError(t, err)
+	// Устанавливаем Content-Type, если передан
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 
 	resp, err := ts.Client().Do(req)
 	require.NoError(t, err)

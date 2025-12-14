@@ -1,27 +1,29 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
-	"github.com/avakumov/metrics/internal/handlers"
-	"github.com/avakumov/metrics/internal/repository"
-	router "github.com/avakumov/metrics/internal/server"
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/server/config"
-	"github.com/avakumov/metrics/internal/service"
+	"github.com/avakumov/metrics/internal/server/handlers"
+	"github.com/avakumov/metrics/internal/server/repository"
+	"github.com/avakumov/metrics/internal/server/router"
+	"github.com/avakumov/metrics/internal/server/service"
+	"go.uber.org/zap"
 )
 
 func main() {
 	options := config.GetOptions()
-	port := fmt.Sprintf(":%d", options.Port)
+
+	logger.Init(options.Level)
+	defer logger.Log.Sync()
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := handlers.NewMetricHandler(metricService)
-
-	err := http.ListenAndServe(port, router.MetricsRouter(metricHandler))
+	metricHandler := handlers.NewMetricsHandler(metricService)
+	logger.Log.Info("metrics server app starting", zap.String("address", options.Address))
+	err := http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
 	if err != nil {
-		log.Printf("Failed to start metrics server on port %s: %v", port, err)
+		logger.Log.Error("failed to start metrics app server", zap.String("address", options.Address), zap.Error(err))
 	}
 }
