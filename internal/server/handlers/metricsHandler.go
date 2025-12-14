@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"errors"
 	"html/template"
 	"io"
 	"net/http"
@@ -30,11 +32,11 @@ type PageData struct {
 	Title   string
 }
 
-func NewMetricHandler(metricService service.MetricService) *MetricHandler {
+func NewMetricsHandler(metricService service.MetricService) *MetricHandler {
 	return &MetricHandler{metricService: metricService}
 }
 
-func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request) {
+func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 
 	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
 	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
@@ -57,7 +59,7 @@ func (h *MetricHandler) GetMetricHandler(rw http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
+func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 	metrics, err := h.metricService.GetAllMetric()
 	if err != nil {
@@ -89,73 +91,77 @@ func (h *MetricHandler) GetAllHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *MetricHandler) UpdateMetricHandler(w http.ResponseWriter, r *http.Request) {
+func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
-	metricType := strings.ToLower(chi.URLParam(r, "metricType"))
-	metricName := strings.ToLower(chi.URLParam(r, "metricName"))
-	metricValue := strings.ToLower(chi.URLParam(r, "metricValue"))
+	metric, err := getMetricFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 
-	if metricType != models.Counter && metricType != models.Gauge {
+	if metric.MType != models.Counter && metric.MType != models.Gauge {
 		http.Error(w, "Metric types is gauge or counter", http.StatusBadRequest)
 		return
 	}
 
-	if metricName == "" {
+	if metric.ID == "" {
 		http.Error(w, "Not found type, name, value", http.StatusNotFound)
 		return
 	}
 
-	if metricValue == "" {
-		http.Error(w, "invalid value", http.StatusBadRequest)
-		return
-	}
-
-	switch metricType {
-	case "counter":
-		_, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			http.Error(w, "invalid counter value", http.StatusBadRequest)
-			return
-		}
-
-	case "gauge":
-		_, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			http.Error(w, "invalid guege value", http.StatusBadRequest)
-			return
-		}
-	default:
-		http.Error(w, "unknown metric type", http.StatusBadRequest)
-		return
-	}
-
-	value, _ := strconv.ParseFloat(metricValue, 64)
-	if metricType == models.Counter {
-		existedMetric, err := h.metricService.GetMetric(metricName)
+	if metric.MType == models.Counter {
+		existedMetric, err := h.metricService.GetMetric(metric.ID)
 		if err == nil {
-			value += *existedMetric.Value
+			*metric.Value += *existedMetric.Value
 		}
 
 	}
-	metric := models.Metric{
-		ID:    metricName,
-		MType: metricType,
-		Value: &value,
-	}
-	err := h.metricService.SaveMetric(metric)
+	err = h.metricService.SaveMetric(metric)
 	if err != nil {
 		logger.Log.Error("error on save metric", zap.Error(err))
-	} else {
-		logger.Log.Debug("update metric",
-			zap.String("ID", metricName),
-			zap.String("Type", metricType),
-			zap.Float64("Value", value))
+		http.Error(w, "error on save metric", http.StatusInternalServerError)
+		return
 	}
+	logger.Log.Debug("update metric",
+		zap.String("ID", metric.ID),
+		zap.String("Type", metric.MType),
+		zap.Float64("Value", *metric.Value))
 
 	w.WriteHeader(http.StatusOK)
 
 }
 
-func (h *MetricHandler) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+func (h *MetricHandler) NotFound(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound) // 404
+}
+func (h *MetricHandler) BadRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest) // 400
+}
+
+// для извлеыения обновления метрики из тела запроса json или из url
+func getMetricFromRequest(r *http.Request) (models.Metric, error) {
+	metric := models.Metric{}
+
+	contentLen := r.ContentLength
+	if contentLen > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			return metric, errors.New("parsing error")
+		}
+		logger.Log.Debug("length body is ", zap.Int("body length", int(contentLen)))
+		logger.Log.Sugar().Debugf("metric recived %+v", metric)
+		logger.Log.Sugar().Debugf("value %f", *metric.Value)
+	} else {
+		metricName := strings.ToLower(chi.URLParam(r, "metricName"))
+		metricType := strings.ToLower(chi.URLParam(r, "metricType"))
+		metricValue := strings.ToLower(chi.URLParam(r, "metricValue"))
+
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return metric, errors.New("invalid parse digit value")
+		}
+		metric.ID = metricName
+		metric.MType = metricType
+		metric.Value = &value
+	}
+	return metric, nil
+
 }

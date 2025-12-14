@@ -164,7 +164,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := handlers.NewMetricHandler(metricService)
+	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
