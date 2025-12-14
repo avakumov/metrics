@@ -83,7 +83,13 @@ func (c *MemStatsCollector) SendMetrics() {
 	c.mu.Unlock()
 
 	for _, metric := range metrics {
-		metricValue := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		var metricValue string
+		if metric.MType == models.Gauge {
+			metricValue = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		}
+		if metric.MType == models.Counter {
+			metricValue = strconv.FormatInt(*metric.Delta, 10)
+		}
 		params := map[string]string{
 			"typeMetric":  metric.MType,
 			"metricID":    metric.ID,
@@ -106,13 +112,15 @@ func (c *MemStatsCollector) SendMetrics() {
 func setCounter(metrics *[]models.Metric) {
 	for i := range *metrics {
 		if (*metrics)[i].ID == "pollcount" {
-			*(*metrics)[i].Value += 1.0
+			*(*metrics)[i].Delta += 1
 			return
 		}
 	}
+	var startCounter int64
+	startCounter = 1
 	*metrics = append(*metrics, models.Metric{
 		ID:    "pollcount",
 		MType: "counter",
-		Value: utils.Float64Ptr(1.0),
+		Delta: &startCounter,
 	})
 }
