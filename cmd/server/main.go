@@ -20,7 +20,7 @@ func main() {
 
 	metricsRepo := repository.NewMemoryRepository()
 	metricService := service.NewMetricService(metricsRepo)
-	metricHandler := handlers.NewMetricHandler(metricService)
+	metricHandler := handlers.NewMetricsHandler(metricService)
 	logger.Log.Info("metrics server app starting", zap.String("address", options.Address))
 	err := http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
 	if err != nil {
