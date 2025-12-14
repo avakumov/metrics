@@ -16,10 +16,12 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", metricHandler.GetAll)
-		r.Post("/update", metricHandler.UpdateMetric)
+
 		r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
+		r.Post("/update/", metricHandler.UpdateMetric)
 		r.Post("/update/gauge/", metricHandler.NotFound)
 		r.Post("/update/counter/", metricHandler.NotFound)
+
 		r.Post("/value/", metricHandler.GetMetricValues)
 		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 

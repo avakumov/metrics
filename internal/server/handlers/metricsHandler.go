@@ -137,57 +137,24 @@ func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) {
-	//парсим json [{id,type}]
-	type simpleMetric struct {
-		ID    string `json:"id"`
-		Type  string `json:"type"`
-		Value string `json:"value,omitempty"`
-	}
-	simpleMetrics := []simpleMetric{}
-	if err := json.NewDecoder(r.Body).Decode(&simpleMetrics); err != nil {
+	sM := models.Metric{}
+	if err := json.NewDecoder(r.Body).Decode(&sM); err != nil {
 		http.Error(w, "parsing json error", http.StatusBadRequest)
 	}
 	defer r.Body.Close()
-	logger.Log.Sugar().Debugf("receive metrics: %+v", simpleMetrics)
+	logger.Log.Sugar().Debugf("receive metrics: %+v", sM)
 
-	// Проверяем, что запрос не пустой
-	// if len(simpleMetrics) == 0 {
-	// 	http.Error(w, "empty metrics array", http.StatusBadRequest)
-	// 	return
-	// }
-
-	result := []simpleMetric{}
 	//получаем метрику из хранилаща
-	for _, m := range simpleMetrics {
-		metric, err := h.metricService.GetMetric(m.ID)
-		if err != nil {
-			logger.Log.Warn("get metric by id", zap.Error(err))
-		}
-		//для gauge
-		if metric.MType == m.Type && metric.MType == models.Gauge {
-			result = append(result, simpleMetric{
-				ID:    m.ID,
-				Type:  m.Type,
-				Value: strconv.FormatFloat(*metric.Value, 'f', -1, 64),
-			})
-		}
-		//для counter
-		if metric.MType == m.Type && metric.MType == models.Counter {
-			result = append(result, simpleMetric{
-				ID:    m.ID,
-				Type:  m.Type,
-				Value: strconv.FormatInt(*metric.Delta, 10),
-			})
-		}
+	metric, err := h.metricService.GetMetric(sM.ID)
+	if err != nil {
+		logger.Log.Warn("get metric by id", zap.Error(err))
 	}
 	// Устанавливаем заголовки и отправляем ответ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
+	if err := json.NewEncoder(w).Encode(metric); err != nil {
 		logger.Log.Error("failed to encode response", zap.Error(err))
 	}
-	//в value кладем Value для gauge, Delta для counter
-	//отправить json
 }
 
 func (h *MetricHandler) NotFound(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +172,7 @@ func getMetricFromRequest(r *http.Request) (models.Metric, error) {
 	contentLen := r.ContentLength
 	if contentLen > 0 {
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-			return metric, errors.New("parsing error")
+			return metric, err
 		}
 		logger.Log.Debug("length body is ", zap.Int("body length", int(contentLen)))
 		logger.Log.Sugar().Debugf("metric recived %+v", metric)
