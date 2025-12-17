@@ -30,7 +30,7 @@ func main() {
 		case <-collectTicker.C:
 			collector.Collect()
 		case <-sendTicker.C:
-			collector.SendMetrics()
+			collector.PostMetricsByJSON()
 		}
 	}
 }

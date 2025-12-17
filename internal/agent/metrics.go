@@ -73,15 +73,23 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 	return c.metrics
 }
 
-func (c *MemStatsCollector) SendMetrics() {
+func (c *MemStatsCollector) PostMetricsByJSON() {
+	metrics := c.getMetrics()
+	for _, metric := range metrics {
+		resp, err := c.restyClient.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(metric).
+			Post("/update/")
 
-	client := c.restyClient
+		if err != nil {
+			logger.Log.Error("request error", zap.Error(err))
+		}
+		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
+	}
+}
 
-	c.mu.Lock()
-	metrics := make([]models.Metric, len(c.metrics))
-	copy(metrics, c.metrics)
-	c.mu.Unlock()
-
+func (c *MemStatsCollector) PostMetricsByURL() {
+	metrics := c.getMetrics()
 	for _, metric := range metrics {
 		var metricValue string
 		if metric.MType == models.Gauge {
@@ -95,8 +103,7 @@ func (c *MemStatsCollector) SendMetrics() {
 			"metricID":    metric.ID,
 			"metricValue": metricValue,
 		}
-
-		resp, err := client.R().
+		resp, err := c.restyClient.R().
 			SetHeader("Content-Type", "text/plain").
 			SetPathParams(params).
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
@@ -106,7 +113,15 @@ func (c *MemStatsCollector) SendMetrics() {
 		}
 		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
 	}
+}
 
+func (c *MemStatsCollector) getMetrics() []models.Metric {
+	c.mu.Lock()
+	metrics := make([]models.Metric, len(c.metrics))
+	copy(metrics, c.metrics)
+	c.mu.Unlock()
+
+	return metrics
 }
 
 func setCounter(metrics *[]models.Metric) {
