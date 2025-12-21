@@ -10,7 +10,7 @@ import (
 
 var Log *zap.Logger = zap.NewNop()
 
-func Init(level string) {
+func Init(level string, prefix string) {
 
 	var zapLevel zapcore.Level
 	switch level {
@@ -25,14 +25,14 @@ func Init(level string) {
 	default:
 		zapLevel = zapcore.InfoLevel
 	}
+	//logger for development
+	if zapLevel == zapcore.DebugLevel {
+		Log = PrefixLogger(prefix)
+		return
+	}
 
 	var config zap.Config
-	if zapLevel == zapcore.DebugLevel {
-		config = zap.NewDevelopmentConfig()
-		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	} else {
-		config = zap.NewProductionConfig()
-	}
+	config = zap.NewProductionConfig()
 	config.Level = zap.NewAtomicLevelAt(zapLevel)
 	logger, err := config.Build()
 

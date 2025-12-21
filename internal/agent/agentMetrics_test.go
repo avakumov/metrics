@@ -7,7 +7,7 @@ import (
 )
 
 func TestMemStatsCollector_Collect(t *testing.T) {
-	collector := NewMemStatsCollector("http://localhost:8080")
+	collector := NewMetricsCollector("http://localhost:8080")
 
 	// Вызываем Collect несколько раз для проверки
 	metrics1 := collector.Collect()
@@ -43,7 +43,7 @@ func TestMemStatsCollector_Collect(t *testing.T) {
 }
 
 func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
-	collector := NewMemStatsCollector("http://localhost:8080")
+	collector := NewMetricsCollector("http://localhost:8080")
 	var wg sync.WaitGroup
 	iterations := 100
 

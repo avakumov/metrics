@@ -13,11 +13,11 @@ func main() {
 
 	options := config.GetOptions()
 
-	logger.Init(options.Level)
+	logger.Init(options.Level, "client")
 	defer logger.Log.Sync()
 
 	logger.Log.Info("metrics client app starting...", zap.String("address", options.Address))
-	collector := agent.NewMemStatsCollector("http://" + options.Address)
+	collector := agent.NewMetricsCollector("http://" + options.Address)
 
 	collectTicker := time.NewTicker(time.Duration(options.PollInterval) * time.Second)
 	defer collectTicker.Stop()

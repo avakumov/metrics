@@ -13,15 +13,15 @@ import (
 	"go.uber.org/zap"
 )
 
-// MemStatsCollector собирает и управляет метриками
-type MemStatsCollector struct {
+// MetricsCollector собирает и управляет метриками
+type MetricsCollector struct {
 	mu          sync.Mutex
 	metrics     []models.Metric
 	restyClient *resty.Client
 }
 
-// NewMemStatsCollector создает новый сборщик метрик
-func NewMemStatsCollector(url string) *MemStatsCollector {
+// NewMetricsCollector создает новый сборщик метрик
+func NewMetricsCollector(url string) *MetricsCollector {
 	client := resty.New()
 	client.SetBaseURL(url)
 	return &MemStatsCollector{
@@ -30,7 +30,7 @@ func NewMemStatsCollector(url string) *MemStatsCollector {
 }
 
 // Collect собирает все метрики памяти
-func (c *MemStatsCollector) Collect() []models.Metric {
+func (c *MetricsCollector) Collect() []models.Metric {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -73,7 +73,7 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 	return c.metrics
 }
 
-func (c *MemStatsCollector) PostMetricsByJSON() {
+func (c *MetricsCollector) PostMetricsByJSON() {
 	metrics := c.getMetrics()
 	for _, metric := range metrics {
 		resp, err := c.restyClient.R().
@@ -88,7 +88,7 @@ func (c *MemStatsCollector) PostMetricsByJSON() {
 	}
 }
 
-func (c *MemStatsCollector) PostMetricsByURL() {
+func (c *MetricsCollector) PostMetricsByURL() {
 	metrics := c.getMetrics()
 	for _, metric := range metrics {
 		var metricValue string
@@ -115,7 +115,7 @@ func (c *MemStatsCollector) PostMetricsByURL() {
 	}
 }
 
-func (c *MemStatsCollector) getMetrics() []models.Metric {
+func (c *MetricsCollector) getMetrics() []models.Metric {
 	c.mu.Lock()
 	metrics := make([]models.Metric, len(c.metrics))
 	copy(metrics, c.metrics)

@@ -15,7 +15,7 @@ import (
 func main() {
 	options := config.GetOptions()
 
-	logger.Init(options.Level)
+	logger.Init(options.Level, "server")
 	defer logger.Log.Sync()
 
 	metricsRepo := repository.NewMemoryRepository()
