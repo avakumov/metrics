@@ -1,4 +1,4 @@
-.PHONY: help test format 
+.PHONY: help test format dev 
 
 help:
 	@echo "  test           Запустить тесты"
@@ -7,6 +7,10 @@ help:
 	@echo "  build-client   build agent"
 	@echo "  build-server   build server"
 	@echo "  clean          clean binary build"
+	@echo "  lint           lint by golangci-lint"
+	@echo "  dev-server     start with debug logger"
+	@echo "  dev-client     start with debug logger"
+	@echo "  dev            start client, server with hot reload and debug logger"
 
 
 test:
@@ -31,3 +35,19 @@ build-server:
 clean:
 	@echo "Cleaning..."
 	rm -f cmd/server/main cmd/agent/main
+
+lint:
+	@echo "Linting..."
+	golangci-lint run
+
+dev-server:
+	@echo "Run dev server ..."
+	cd cmd/server && go run main.go -l=debug
+
+dev-client:
+	@echo "Run dev client ..."
+	cd cmd/agent && go run main.go -l=debug
+
+dev:
+	@echo "RUN DEV SERVER AND CLIENT..."
+	air
