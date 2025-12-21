@@ -10,11 +10,12 @@ import (
 	"time"
 )
 
-func runCommand(ctx context.Context, name string, args ...string) {
+func runCommand(ctx context.Context, dir, name string, args ...string) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
+	cmd.Dir = dir
 
 	fmt.Printf("Starting: %s %v\n", name, args)
 	if err := cmd.Run(); err != nil {
@@ -27,7 +28,7 @@ func main() {
 
 	// Запускаем сервер в горутине
 	go func() {
-		runCommand(ctx, "go", "run", "./cmd/server", "-l=debug")
+		runCommand(ctx, "cmd/server", "go", "run", ".", "-l", "debug")
 	}()
 
 	// Даем серверу время запуститься
@@ -35,7 +36,7 @@ func main() {
 
 	// Запускаем клиент
 	go func() {
-		runCommand(ctx, "go", "run", "./cmd/agent", "-l=debug")
+		runCommand(ctx, "cmd/agent", "go", "run", ".", "-l", "debug")
 	}()
 
 	// Обработка сигналов для graceful shutdown

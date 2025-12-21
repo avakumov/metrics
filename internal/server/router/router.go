@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/avakumov/metrics/internal/compress"
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/server/handlers"
 	"github.com/go-chi/chi/v5"
@@ -13,7 +14,8 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r.Use(middleware.Recoverer)
 	r.Use(logger.LoggerMiddleware)
-
+	r.Use(compress.GzipDecoderMiddleware)
+	r.Use(compress.GzipEncoderMiddleware)
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", metricHandler.GetAll)
 

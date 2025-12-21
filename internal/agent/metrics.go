@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"math/rand"
 	"runtime"
 	"strconv"
@@ -24,7 +27,15 @@ type MetricsCollector struct {
 func NewMetricsCollector(url string) *MetricsCollector {
 	client := resty.New()
 	client.SetBaseURL(url)
-	return &MemStatsCollector{
+
+	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
+		return nil
+	})
+	client.OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+		logger.Log.Info("REQUEST: ", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
+		return nil
+	})
+	return &MetricsCollector{
 		restyClient: client,
 	}
 }
@@ -76,15 +87,28 @@ func (c *MetricsCollector) Collect() []models.Metric {
 func (c *MetricsCollector) PostMetricsByJSON() {
 	metrics := c.getMetrics()
 	for _, metric := range metrics {
-		resp, err := c.restyClient.R().
+		// Конвертируем в JSON
+		jsonData, err := json.Marshal(metric)
+		if err != nil {
+			logger.Log.Error("json error", zap.Error(err))
+			continue
+		}
+
+		// Сжимаем если большой
+		body := jsonData
+		compressed, err := compressGzip(jsonData)
+		if err == nil {
+			body = compressed
+		}
+		_, err = c.restyClient.R().
 			SetHeader("Content-Type", "application/json").
-			SetBody(metric).
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(body).
 			Post("/update/")
 
 		if err != nil {
 			logger.Log.Error("request error", zap.Error(err))
 		}
-		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
 	}
 }
 
@@ -103,7 +127,7 @@ func (c *MetricsCollector) PostMetricsByURL() {
 			"metricID":    metric.ID,
 			"metricValue": metricValue,
 		}
-		resp, err := c.restyClient.R().
+		_, err := c.restyClient.R().
 			SetHeader("Content-Type", "text/plain").
 			SetPathParams(params).
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
@@ -111,7 +135,6 @@ func (c *MetricsCollector) PostMetricsByURL() {
 		if err != nil {
 			logger.Log.Error("request error", zap.Error(err))
 		}
-		logger.Log.Info("SEND METRIC", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
 	}
 }
 
@@ -137,4 +160,14 @@ func setCounter(metrics *[]models.Metric) {
 		MType: "counter",
 		Delta: &startCounter,
 	})
+}
+
+func compressGzip(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(data); err != nil {
+		return nil, err
+	}
+	gz.Close()
+	return buf.Bytes(), nil
 }

@@ -116,7 +116,6 @@ func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	metric, err := getMetricFromRequest(r)
-	logger.Log.Sugar().Debugf("METRIC: %+v\n", metric)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -200,8 +199,7 @@ func getMetricFromRequest(r *http.Request) (models.Metric, error) {
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			return metric, err
 		}
-		logger.Log.Debug("length body is ", zap.Int("body length", int(contentLen)))
-		logger.Log.Sugar().Debugf("metric recived %+v", metric)
+		//logger.Log.Sugar().Debugf("metric recived %+v", metric)
 		return metric, nil
 	}
 	//метрика из url
