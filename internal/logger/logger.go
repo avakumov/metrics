@@ -31,8 +31,7 @@ func Init(level string, prefix string) {
 		return
 	}
 
-	var config zap.Config
-	config = zap.NewProductionConfig()
+	config := zap.NewProductionConfig()
 	config.Level = zap.NewAtomicLevelAt(zapLevel)
 	logger, err := config.Build()
 

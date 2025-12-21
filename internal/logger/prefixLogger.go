@@ -13,7 +13,6 @@ func PrefixLogger(prefix string) *zap.Logger {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	config.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05")
-	config.Development = true
 
 	// Создаем кастомный encoder
 	encoder := &prefixConsoleEncoder{
