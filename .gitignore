@@ -15,6 +15,7 @@
 cmd/agent/main
 cmd/server/main
 cmd/server/data.json
+internal/server/router/data.json
 
 tmp/
 

@@ -59,14 +59,10 @@ func (s *MetricService) saveMetricsWithPeriod() {
 	ticker := time.NewTicker(time.Duration(s.storeInterval) * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			err := s.saveMetricInFile()
-			if err != nil {
-				logger.Log.Error("error on save to file", zap.Error(err))
-
-			}
+	for range ticker.C {
+		err := s.saveMetricInFile()
+		if err != nil {
+			logger.Log.Error("error on save to file", zap.Error(err))
 		}
 	}
 }

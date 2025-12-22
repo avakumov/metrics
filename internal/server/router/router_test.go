@@ -222,7 +222,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo)
+	metricService := service.NewMetricService(metricsRepo, "data.json", 800)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -267,7 +267,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 // TestGzipDecoding проверяет декодирование входящих gzip данных
 func TestGzipDecoding(t *testing.T) {
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo)
+	metricService := service.NewMetricService(metricsRepo, "data.json", 800)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
