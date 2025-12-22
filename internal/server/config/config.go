@@ -8,16 +8,14 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v6"
-	"go.uber.org/zap"
 )
 
 type Options struct {
-	Address string `env:"ADDRESS"`
-	Level   string
-}
-
-func (a Options) String() string {
-	return fmt.Sprintf("address:%s", a.Address)
+	Address         string `env:"ADDRESS"`           //flag -a
+	FileStoragePath string `env:"FILE_STORAGE_PATH"` //flag -f
+	StoreInterval   int    `env:"STORE_INTERVAL"`    //flag -i
+	Restore         bool   `env:"RESTORE"`           //flag -r
+	LogLevel        string `env:"LOG_LEVEL"`         //flag -log
 }
 
 func (a *Options) Set(s string) error {
@@ -37,8 +35,11 @@ func GetOptions() Options {
 
 	//default options
 	options := Options{
-		Address: "localhost:8080",
-		Level:   "info",
+		Address:         "localhost:8080",
+		FileStoragePath: "data.json",
+		StoreInterval:   300,
+		Restore:         true,
+		LogLevel:        "info",
 	}
 
 	//options from env
@@ -49,9 +50,11 @@ func GetOptions() Options {
 
 	//options from flags
 	flag.StringVar(&options.Address, "a", options.Address, "Server address in format host:port")
-	flag.StringVar(&options.Level, "l", options.Level, "Level of logging")
+	flag.StringVar(&options.FileStoragePath, "f", options.FileStoragePath, "Path to storage file")
+	flag.IntVar(&options.StoreInterval, "i", options.StoreInterval, "Store data interval")
+	flag.BoolVar(&options.Restore, "r", options.Restore, "Restore data on start")
+	flag.StringVar(&options.LogLevel, "log", options.LogLevel, "Level of logging")
 	flag.Parse()
 
-	log.Printf("Start server options %v\n", zap.String("Address", options.Address))
 	return options
 }

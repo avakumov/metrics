@@ -15,13 +15,17 @@ import (
 func main() {
 	options := config.GetOptions()
 
-	logger.Init(options.Level, "server")
+	logger.Init(options.LogLevel, "server")
 	defer logger.Log.Sync()
+	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo)
+	if options.Restore {
+		metricsRepo.Restore(options.FileStoragePath)
+	}
+	metricService := service.NewMetricService(metricsRepo, options.FileStoragePath, options.StoreInterval)
+	metricService.Init()
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	logger.Log.Info("metrics server app starting", zap.String("address", options.Address))
 	err := http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
 	if err != nil {
 		logger.Log.Error("failed to start metrics app server", zap.String("address", options.Address), zap.Error(err))

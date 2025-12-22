@@ -1,11 +1,15 @@
 package router
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"compress/gzip"
+	"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -258,4 +262,46 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 	require.NoError(t, err)
 
 	return resp, string(respBody)
+}
+
+// TestGzipDecoding проверяет декодирование входящих gzip данных
+func TestGzipDecoding(t *testing.T) {
+	metricsRepo := repository.NewMemoryRepository()
+	metricService := service.NewMetricService(metricsRepo)
+	metricHandler := handlers.NewMetricsHandler(metricService)
+	r := MetricsRouter(metricHandler)
+	ts := httptest.NewServer(r)
+	defer ts.Close()
+
+	// Создаем JSON данные
+	jsonData := map[string]interface{}{
+		"id":    "testMetric",
+		"type":  "gauge",
+		"value": 123.45,
+	}
+	data, _ := json.Marshal(jsonData)
+
+	// Сжимаем данные gzip
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	gz.Write(data)
+	gz.Close()
+
+	// Создаем запрос с gzip сжатием
+	req := httptest.NewRequest("POST", "/update/", &buf)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Accept-Encoding", "gzip") // Для ответа
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	// Проверяем, что запрос обработан (не 400)
+	if rr.Code != http.StatusOK {
+		t.Errorf("Handler вернул BadRequest для gzip запроса. Возможно декодирование не работает")
+	}
+
+	// Проверяем, что данные корректно распаковались и обработались
+	// Для этого можно проверить, что метрика сохранилась
+	// или что ответ не содержит ошибок формата
 }

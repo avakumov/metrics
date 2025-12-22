@@ -13,11 +13,7 @@ type Options struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	Address        string `env:"ADDRESS"`
-	Level          string
-}
-
-func (a Options) String() string {
-	return fmt.Sprintf("address:%s, pollInterval:%d, reportInterval:%d", a.Address, a.PollInterval, a.ReportInterval)
+	Level          string `env:"LOG_LEVEL"`
 }
 
 func (a *Options) Set(s string) error {
@@ -51,12 +47,12 @@ func GetOptions() Options {
 
 	//options from flags
 	flag.StringVar(&options.Address, "a", options.Address, "Server address in format host:port")
-	flag.StringVar(&options.Level, "l", options.Level, "Level of logging")
+	flag.StringVar(&options.Level, "log", options.Level, "Level of logging")
 	flag.IntVar(&options.ReportInterval, "r", options.ReportInterval, "Report interval in seconds")
 	flag.IntVar(&options.PollInterval, "p", options.PollInterval, "Poll interval in seconds")
 
 	flag.Parse()
 
-	log.Printf("options: %s\n", options)
+	//	log.Printf("options: %s\n", options)
 	return options
 }

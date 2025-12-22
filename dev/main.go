@@ -28,7 +28,7 @@ func main() {
 
 	// Запускаем сервер в горутине
 	go func() {
-		runCommand(ctx, "cmd/server", "go", "run", ".", "-l", "debug")
+		runCommand(ctx, "cmd/server", "go", "run", ".", "-log", "debug")
 	}()
 
 	// Даем серверу время запуститься
@@ -36,7 +36,7 @@ func main() {
 
 	// Запускаем клиент
 	go func() {
-		runCommand(ctx, "cmd/agent", "go", "run", ".", "-l", "debug")
+		runCommand(ctx, "cmd/agent", "go", "run", ".", "-log", "debug")
 	}()
 
 	// Обработка сигналов для graceful shutdown

@@ -6,7 +6,6 @@ import (
 	"github.com/avakumov/metrics/internal/agent"
 	"github.com/avakumov/metrics/internal/agent/config"
 	"github.com/avakumov/metrics/internal/logger"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -15,8 +14,8 @@ func main() {
 
 	logger.Init(options.Level, "client")
 	defer logger.Log.Sync()
+	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
-	logger.Log.Info("metrics client app starting...", zap.String("address", options.Address))
 	collector := agent.NewMetricsCollector("http://" + options.Address)
 
 	collectTicker := time.NewTicker(time.Duration(options.PollInterval) * time.Second)

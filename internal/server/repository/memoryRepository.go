@@ -1,10 +1,14 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
+	"go.uber.org/zap"
 )
 
 type MemoryRepository struct {
@@ -16,6 +20,32 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
 		metrics: make(map[string]models.Metric),
 		mu:      sync.Mutex{},
+	}
+
+}
+
+func (r *MemoryRepository) Restore(filepath string) {
+
+	if _, err := os.Stat(filepath); os.IsNotExist(err) {
+		logger.Log.Info("Storage file does not exist, starting fresh")
+		return
+	}
+
+	data, err := os.ReadFile(filepath)
+	if err != nil {
+		logger.Log.Error("read file error, starting fresh", zap.Error(err))
+		return
+	}
+	var metrics []models.Metric
+	err = json.Unmarshal(data, &metrics)
+	if err != nil {
+		logger.Log.Error("unmarshal json error, starting fresh", zap.Error(err))
+		return
+	}
+	err = r.SaveMetrics(metrics)
+	if err != nil {
+		logger.Log.Error("restore metrics from file error", zap.Error(err))
+		return
 	}
 }
 
@@ -42,6 +72,16 @@ func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
 		}
 	}
 	r.metrics[metric.ID] = metric
+	return nil
+}
+
+func (r *MemoryRepository) SaveMetrics(metrics []models.Metric) error {
+	for _, metric := range metrics {
+		err := r.SaveMetric(metric)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

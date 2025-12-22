@@ -1,20 +1,45 @@
 package service
 
 import (
+	"encoding/json"
+	"os"
+	"time"
+
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/server/repository"
+	"go.uber.org/zap"
 )
 
 type MetricService struct {
-	metricsRepo repository.Repository
+	metricsRepo   repository.Repository
+	storeInterval int
+	storeFilepath string
 }
 
-func NewMetricService(repo repository.Repository) MetricService {
-	return MetricService{metricsRepo: repo}
+func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int) MetricService {
+	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath}
+}
+
+func (s *MetricService) Init() error {
+	if s.storeInterval > 0 {
+		go s.saveMetricsWithPeriod()
+	}
+	return nil
 }
 
 func (s *MetricService) SaveMetric(metric models.Metric) error {
-	return s.metricsRepo.SaveMetric(metric)
+	err := s.metricsRepo.SaveMetric(metric)
+	if err != nil {
+		return err
+	}
+
+	err = s.saveMetricInFile()
+	if err != nil {
+		return err
+	}
+	return nil
+	//save metrics to file
 }
 
 func (s *MetricService) GetMetric(id string) (models.Metric, error) {
@@ -27,4 +52,40 @@ func (s *MetricService) GetAllMetric() ([]models.Metric, error) {
 
 func (s *MetricService) RemoveMetric(id string) error {
 	return s.metricsRepo.DeleteMetricByID(id)
+}
+
+func (s *MetricService) saveMetricsWithPeriod() {
+
+	ticker := time.NewTicker(time.Duration(s.storeInterval) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			err := s.saveMetricInFile()
+			if err != nil {
+				logger.Log.Error("error on save to file", zap.Error(err))
+
+			}
+		}
+	}
+}
+
+func (s *MetricService) saveMetricInFile() error {
+
+	logger.Log.Debug("Auto-saving metrics...")
+	metrics, err := s.metricsRepo.FindAll()
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(metrics, "", "   ")
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(s.storeFilepath, data, 0666)
+	if err != nil {
+		return err
+	}
+	logger.Log.Debug("Auto-save completed")
+	return nil
 }
