@@ -284,7 +284,10 @@ func TestGzipDecoding(t *testing.T) {
 	// Сжимаем данные gzip
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	gz.Write(data)
+	_, err := gz.Write(data)
+	if err != nil {
+		t.Errorf("compress error %+v", err)
+	}
 	gz.Close()
 
 	// Создаем запрос с gzip сжатием

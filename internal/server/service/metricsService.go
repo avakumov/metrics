@@ -21,11 +21,10 @@ func NewMetricService(repo repository.Repository, storeFilepath string, storeInt
 	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath}
 }
 
-func (s *MetricService) Init() error {
+func (s *MetricService) Init() {
 	if s.storeInterval > 0 {
 		go s.saveMetricsWithPeriod()
 	}
-	return nil
 }
 
 func (s *MetricService) SaveMetric(metric models.Metric) error {

@@ -13,7 +13,7 @@ func main() {
 	options := config.GetOptions()
 
 	logger.Init(options.Level, "client")
-	defer logger.Log.Sync()
+	defer logger.Log.Sync() //nolint:errcheck
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
 	collector := agent.NewMetricsCollector("http://" + options.Address)

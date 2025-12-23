@@ -16,7 +16,7 @@ func main() {
 	options := config.GetOptions()
 
 	logger.Init(options.LogLevel, "server")
-	defer logger.Log.Sync()
+	defer logger.Log.Sync() //nolint:errcheck
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
 	metricsRepo := repository.NewMemoryRepository()
