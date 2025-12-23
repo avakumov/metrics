@@ -1,35 +1,47 @@
 package agent
 
 import (
-	"log"
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"math/rand"
 	"runtime"
 	"strconv"
 	"sync"
 
+	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
-// MemStatsCollector собирает и управляет метриками
-type MemStatsCollector struct {
+// MetricsCollector собирает и управляет метриками
+type MetricsCollector struct {
 	mu          sync.Mutex
 	metrics     []models.Metric
 	restyClient *resty.Client
 }
 
-// NewMemStatsCollector создает новый сборщик метрик
-func NewMemStatsCollector(url string) *MemStatsCollector {
+// NewMetricsCollector создает новый сборщик метрик
+func NewMetricsCollector(url string) *MetricsCollector {
 	client := resty.New()
 	client.SetBaseURL(url)
-	return &MemStatsCollector{
+
+	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
+		return nil
+	})
+	client.OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
+		logger.Log.Info("REQUEST: ", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
+		return nil
+	})
+	return &MetricsCollector{
 		restyClient: client,
 	}
 }
 
 // Collect собирает все метрики памяти
-func (c *MemStatsCollector) Collect() []models.Metric {
+func (c *MetricsCollector) Collect() []models.Metric {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -72,46 +84,90 @@ func (c *MemStatsCollector) Collect() []models.Metric {
 	return c.metrics
 }
 
-func (c *MemStatsCollector) SendMetrics() {
-
-	client := c.restyClient
-
-	c.mu.Lock()
-	metrics := make([]models.Metric, len(c.metrics))
-	copy(metrics, c.metrics)
-	c.mu.Unlock()
-
+func (c *MetricsCollector) PostMetricsByJSON() {
+	metrics := c.getMetrics()
 	for _, metric := range metrics {
-		metricValue := strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		// Конвертируем в JSON
+		jsonData, err := json.Marshal(metric)
+		if err != nil {
+			logger.Log.Error("json error", zap.Error(err))
+			continue
+		}
+
+		// Сжимаем если большой
+		body := jsonData
+		compressed, err := compressGzip(jsonData)
+		if err == nil {
+			body = compressed
+		}
+		_, err = c.restyClient.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(body).
+			Post("/update/")
+
+		if err != nil {
+			logger.Log.Error("request error", zap.Error(err))
+		}
+	}
+}
+
+func (c *MetricsCollector) PostMetricsByURL() {
+	metrics := c.getMetrics()
+	for _, metric := range metrics {
+		var metricValue string
+		if metric.MType == models.Gauge {
+			metricValue = strconv.FormatFloat(*metric.Value, 'f', -1, 64)
+		}
+		if metric.MType == models.Counter {
+			metricValue = strconv.FormatInt(*metric.Delta, 10)
+		}
 		params := map[string]string{
 			"typeMetric":  metric.MType,
 			"metricID":    metric.ID,
 			"metricValue": metricValue,
 		}
-
-		resp, err := client.R().
+		_, err := c.restyClient.R().
 			SetHeader("Content-Type", "text/plain").
 			SetPathParams(params).
 			Post("/update/{typeMetric}/{metricID}/{metricValue}")
 
 		if err != nil {
-			log.Printf("▶️  REQUEST ERROR: %v\n", err)
+			logger.Log.Error("request error", zap.Error(err))
 		}
-		log.Printf("url: %s, code: %d\n", resp.Request.URL, resp.StatusCode())
 	}
+}
 
+func (c *MetricsCollector) getMetrics() []models.Metric {
+	c.mu.Lock()
+	metrics := make([]models.Metric, len(c.metrics))
+	copy(metrics, c.metrics)
+	c.mu.Unlock()
+
+	return metrics
 }
 
 func setCounter(metrics *[]models.Metric) {
 	for i := range *metrics {
-		if (*metrics)[i].ID == "pollcount" {
-			*(*metrics)[i].Value += 1.0
+		if (*metrics)[i].ID == "PollCount" {
+			*(*metrics)[i].Delta += 1
 			return
 		}
 	}
+	var startCounter int64 = 1
 	*metrics = append(*metrics, models.Metric{
-		ID:    "pollcount",
+		ID:    "PollCount",
 		MType: "counter",
-		Value: utils.Float64Ptr(1.0),
+		Delta: &startCounter,
 	})
+}
+
+func compressGzip(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(data); err != nil {
+		return nil, err
+	}
+	gz.Close()
+	return buf.Bytes(), nil
 }
