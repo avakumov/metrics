@@ -16,6 +16,7 @@ type Options struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`    //flag -i
 	Restore         bool   `env:"RESTORE"`           //flag -r
 	LogLevel        string `env:"LOG_LEVEL"`         //flag -log
+	DSN             string `env:"DATABASE_DSN"`      //flag -d
 }
 
 func (a *Options) Set(s string) error {
@@ -54,6 +55,7 @@ func GetOptions() Options {
 	flag.IntVar(&options.StoreInterval, "i", options.StoreInterval, "Store data interval")
 	flag.BoolVar(&options.Restore, "r", options.Restore, "Restore data on start")
 	flag.StringVar(&options.LogLevel, "log", options.LogLevel, "Level of logging")
+	flag.StringVar(&options.DSN, "d", options.DSN, "Database DSN")
 	flag.Parse()
 
 	return options

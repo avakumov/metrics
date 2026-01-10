@@ -15,10 +15,11 @@ type MetricService struct {
 	metricsRepo   repository.Repository
 	storeInterval int
 	storeFilepath string
+	DB            *repository.Database
 }
 
-func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int) MetricService {
-	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath}
+func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int, db *repository.Database) MetricService {
+	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath, DB: db}
 }
 
 func (s *MetricService) Init() {

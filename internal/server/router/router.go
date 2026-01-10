@@ -27,6 +27,8 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 		r.Post("/value/", metricHandler.GetMetricValues)
 		r.Get("/value/{metricType}/{metricName}", metricHandler.GetMetric)
 
+		r.Get("/ping", metricHandler.PingDB)
+
 		//на все не найденные отвечать кодом 400
 		r.NotFound(metricHandler.BadRequest)
 	})

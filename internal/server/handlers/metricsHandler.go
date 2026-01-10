@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
 	"io"
 	"net/http"
 	"sort"
+	"time"
 
 	"strconv"
 
@@ -188,6 +190,33 @@ func (h *MetricHandler) NotFound(w http.ResponseWriter, r *http.Request) {
 }
 func (h *MetricHandler) BadRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest) // 400
+}
+
+func (h *MetricHandler) PingDB(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if h.metricService.DB == nil || h.metricService.DB.Pool == nil {
+		logger.Log.Error("database connection is not initialized")
+		http.Error(w, "database not configured", http.StatusInternalServerError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	err := h.metricService.DB.Pool.Ping(ctx)
+	if err != nil {
+		//база данных не доступна
+		logger.Log.Error("database ping failed",
+			zap.Error(err),
+			zap.String("method", r.Method),
+			zap.String("path", r.URL.Path),
+		)
+		http.Error(w, "database not configured", http.StatusInternalServerError)
+		return
+	}
+	//успеншый пинг базы данных
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Database is available"))
 }
 
 // для извлеыения обновления метрики из тела запроса json или из url

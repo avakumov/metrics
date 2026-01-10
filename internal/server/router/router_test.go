@@ -236,10 +236,16 @@ func TestUpdateMetricHandler(t *testing.T) {
 			body:             ` {"id":"testCounter", "type":"counter"}`,
 			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":14}`,
 		},
+		{
+			name:           "ping to database /ping",
+			method:         http.MethodGet,
+			path:           "/ping",
+			expectedStatus: http.StatusNotFound,
+		},
 	}
 
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo, "data.json", 800)
+	metricService := service.NewMetricService(metricsRepo, "data.json", 800, nil)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -284,7 +290,7 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 // TestGzipDecoding проверяет декодирование входящих gzip данных
 func TestGzipDecoding(t *testing.T) {
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo, "data.json", 800)
+	metricService := service.NewMetricService(metricsRepo, "data.json", 800, nil)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)

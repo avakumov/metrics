@@ -19,14 +19,21 @@ func main() {
 	defer logger.Log.Sync() //nolint:errcheck
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
+	//database init
+	db, err := repository.NewDatabase(options.DSN)
+	if err != nil {
+		logger.Log.Error("failed to connect db", zap.String("DSN", options.DSN), zap.Error(err))
+	}
+
 	metricsRepo := repository.NewMemoryRepository()
+	//restore from file
 	if options.Restore {
 		metricsRepo.Restore(options.FileStoragePath)
 	}
-	metricService := service.NewMetricService(metricsRepo, options.FileStoragePath, options.StoreInterval)
+	metricService := service.NewMetricService(metricsRepo, options.FileStoragePath, options.StoreInterval, db)
 	metricService.Init()
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	err := http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
+	err = http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
 	if err != nil {
 		logger.Log.Error("failed to start metrics app server", zap.String("address", options.Address), zap.Error(err))
 	}
