@@ -240,7 +240,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			name:           "ping to database /ping",
 			method:         http.MethodGet,
 			path:           "/ping",
-			expectedStatus: http.StatusNotFound,
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
 
