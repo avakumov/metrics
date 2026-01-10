@@ -32,13 +32,15 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 	if err != nil {
 		return err
 	}
-
-	err = s.saveMetricInFile()
-	if err != nil {
-		return err
+	//сохраняем синхронно в файл если не задан интервал сохранения
+	if s.storeInterval == 0 {
+		err = s.saveMetricInFile()
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
-	//save metrics to file
 }
 
 func (s *MetricService) GetMetric(id string) (models.Metric, error) {

@@ -64,8 +64,8 @@ func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if metric.MType == models.Counter {
-		existMetric, exists := r.metrics[metric.ID]
-		if exists {
+		existMetric, ok := r.metrics[metric.ID]
+		if ok {
 			if existMetric.Delta != nil {
 				*metric.Delta += *existMetric.Delta
 			}

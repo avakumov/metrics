@@ -219,6 +219,23 @@ func TestUpdateMetricHandler(t *testing.T) {
 			expectedStatus: http.StatusNotFound,
 			body:           ` {"id":"testCounter", "type":"gauge"}`,
 		},
+		{
+			name:           "Update counter by json on /update/",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			path:           "/update/",
+			expectedStatus: http.StatusOK,
+			body:           `{"id":"testCounter", "type":"counter", "delta":10}`,
+		},
+		{
+			name:             "Get counter metric by json on /value/",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             ` {"id":"testCounter", "type":"counter"}`,
+			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":14}`,
+		},
 	}
 
 	metricsRepo := repository.NewMemoryRepository()

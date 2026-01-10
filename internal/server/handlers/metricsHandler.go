@@ -19,6 +19,7 @@ import (
 
 type MetricHandler struct {
 	metricService service.MetricService
+	templatePath  string
 }
 
 type Metric struct {
@@ -77,7 +78,8 @@ func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 	metrics, err := h.metricService.GetAllMetric()
 	if err != nil {
-		http.Error(rw, "Not found metrics", http.StatusNotFound)
+		logger.Log.Error("failed to get all metrics", zap.Error(err))
+		http.Error(rw, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -172,14 +174,13 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "not found metric", http.StatusNotFound)
 		return
 	}
-	// Устанавливаем заголовки и отправляем ответ
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
 		logger.Log.Error("failed to encode response", zap.Error(err))
 		http.Error(w, "failed to encode response", http.StatusBadRequest)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *MetricHandler) NotFound(w http.ResponseWriter, r *http.Request) {

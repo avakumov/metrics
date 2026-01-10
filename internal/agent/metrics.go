@@ -31,10 +31,11 @@ func NewMetricsCollector(url string) *MetricsCollector {
 	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
 		return nil
 	})
-	client.OnAfterResponse(func(c *resty.Client, resp *resty.Response) error {
-		logger.Log.Info("REQUEST: ", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
-		return nil
-	})
+	client.OnAfterResponse(
+		func(c *resty.Client, resp *resty.Response) error {
+			logger.Log.Info("REQUEST: ", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
+			return nil
+		})
 	return &MetricsCollector{
 		restyClient: client,
 	}

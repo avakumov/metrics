@@ -3,10 +3,11 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/caarlos0/env/v6"
 )
 
 type Options struct {
@@ -30,8 +31,7 @@ func (a *Options) Set(s string) error {
 }
 
 func GetOptions() Options {
-
-	//defalult options
+	// defalult options
 	options := Options{
 		Address:        "localhost:8080",
 		PollInterval:   2,
@@ -39,20 +39,34 @@ func GetOptions() Options {
 		Level:          "info",
 	}
 
-	//options from env
+	// options from env
 	err := env.Parse(&options)
 	if err != nil {
 		log.Printf("error parse options from env: %s", err)
 	}
 
-	//options from flags
-	flag.StringVar(&options.Address, "a", options.Address, "Server address in format host:port")
+	// options from flags
+	flag.StringVar(
+		&options.Address,
+		"a",
+		options.Address,
+		"Server address in format host:port",
+	)
 	flag.StringVar(&options.Level, "log", options.Level, "Level of logging")
-	flag.IntVar(&options.ReportInterval, "r", options.ReportInterval, "Report interval in seconds")
-	flag.IntVar(&options.PollInterval, "p", options.PollInterval, "Poll interval in seconds")
+	flag.IntVar(
+		&options.ReportInterval,
+		"r",
+		options.ReportInterval,
+		"Report interval in seconds",
+	)
+	flag.IntVar(
+		&options.PollInterval,
+		"p",
+		options.PollInterval,
+		"Poll interval in seconds",
+	)
 
 	flag.Parse()
 
-	//	log.Printf("options: %s\n", options)
 	return options
 }
