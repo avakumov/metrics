@@ -165,6 +165,7 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	defer r.Body.Close()
 	logger.Log.Sugar().Debugf("receive metrics: %+v", sM)
 
+	w.Header().Set("Content-Type", "application/json")
 	//получаем метрику из хранилаща
 	metric, err := h.metricService.GetMetric(sM.ID)
 	if err != nil {
@@ -181,7 +182,6 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "failed to encode response", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
