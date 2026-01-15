@@ -27,3 +27,4 @@ vendor/
 .vscode
 todo.md
 /.gigaide/gigaide.properties
+.env
