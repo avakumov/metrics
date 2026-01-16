@@ -17,13 +17,17 @@ type Database struct {
 }
 
 func Connect(DSN string) (*Database, error) {
+	var db = &Database{
+		Pool:  nil,
+		SQLDB: nil,
+	}
 	if len(DSN) == 0 {
-		return nil, fmt.Errorf("DSN string is empty: %s", DSN)
+		return db, fmt.Errorf("DSN string is empty: %s", DSN)
 	}
 
 	config, err := pgxpool.ParseConfig(DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+		return db, fmt.Errorf("failed to parse connection string: %w", err)
 	}
 
 	config.MaxConns = 25
@@ -33,7 +37,7 @@ func Connect(DSN string) (*Database, error) {
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+		return db, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
 	// Test connection
@@ -41,23 +45,25 @@ func Connect(DSN string) (*Database, error) {
 	defer cancel()
 
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return db, fmt.Errorf("failed to ping database: %w", err)
 	}
+	db.Pool = pool
 
 	logger.Log.Info("✅ Connected to PostgreSQL by Pool")
 
 	// Создаём sql.DB для миграций
 	sqlDB, err := sql.Open("postgres", DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+		return db, fmt.Errorf("failed to parse connection string: %w", err)
 	}
 	if err := sqlDB.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+		return db, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	logger.Log.Info("✅ Connected to PostgreSQL")
 
-	return &Database{Pool: pool, SQLDB: sqlDB}, nil
+	db.SQLDB = sqlDB
+	return db, nil
 }
 
 func (db *Database) Close() {
