@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"embed"
+	"fmt"
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/pressly/goose/v3"
@@ -12,6 +13,9 @@ import (
 var embedMigrations embed.FS
 
 func RunMigrations(db *sql.DB) error {
+	if db == nil {
+		return fmt.Errorf("database connetioction is nil")
+	}
 	//install embedded file system
 	goose.SetBaseFS(embedMigrations)
 
@@ -27,6 +31,9 @@ func RunMigrations(db *sql.DB) error {
 }
 
 func RollbackMigration(db *sql.DB) error {
+	if db == nil {
+		return fmt.Errorf("database connetioction is nil")
+	}
 	goose.SetBaseFS(embedMigrations)
 	return goose.Down(db, "migrations")
 }

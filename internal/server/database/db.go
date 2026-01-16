@@ -17,6 +17,9 @@ type Database struct {
 }
 
 func Connect(DSN string) (*Database, error) {
+	if len(DSN) == 0 {
+		return nil, fmt.Errorf("DSN string is empty: %s", DSN)
+	}
 
 	config, err := pgxpool.ParseConfig(DSN)
 	if err != nil {
