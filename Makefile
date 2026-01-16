@@ -1,6 +1,6 @@
 
 # ==================== VARIABLES ====================
-MIGRATIONS_PATH := ./migrations
+MIGRATIONS_PATH := ./internal/server/database/migrations
 
 # переменные из .env делаем доступными для команд
 include .env
@@ -47,29 +47,30 @@ dev: ## Start app with development options
 	air
 
 # ==================== MIGRATIONS ====================
-.PHONY: migrate migrate-up migrate-down migrate-down-all migrate-create migrate-version 
+.PHONY: migrate migrate-up migrate-down migrate-reset migrate-create migrate-status migrate-version 
 migrate: migrate-up ## Alias for migrate-up
 
 migrate-up: ## Apply all pending migrations
 	@echo "Applying migrations to '$(DATABASE_DSN)'..."
-	@migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_DSN)" up
-	@echo "✅ Migrations applied"
+	@goose -dir $(MIGRATIONS_PATH) postgres "$(DATABASE_DSN)" up
 
 migrate-down: ## Rollback last migration
 	@echo "Rolling back last migration..."
-	@migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_DSN)" down 1
-	@echo "✅ Migration rolled back"
+	@goose -dir $(MIGRATIONS_PATH) postgres "$(DATABASE_DSN)" down 
 
-migrate-down-all: ## Rollback all migrations
+migrate-reset: ## Rollback all migrations
 	@echo "Rolling back ALL migrations..."
-	@migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_DSN)" down
+	@goose -dir $(MIGRATIONS_PATH) postgres "$(DATABASE_DSN)" reset 
 
 migrate-create: ## Create new migration
 	@read -p "Enter migration name: " name; \
-	migrate create -ext sql -dir $(MIGRATIONS_PATH) -seq $$name
-	@echo "✅ Migration created: $(MIGRATIONS_PATH)/*_$$name.sql"
+	goose create -dir $(MIGRATIONS_PATH) $$name sql 
+
+migrate-status: ## Show current migration status 
+	@echo "Current migration status:"
+	@goose -dir $(MIGRATIONS_PATH) postgres "$(DATABASE_DSN)" status 
 
 migrate-version: ## Show current migration version
 	@echo "Current migration version:"
-	@migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_DSN)" version
+	@goose -dir $(MIGRATIONS_PATH) postgres "$(DATABASE_DSN)" version
 

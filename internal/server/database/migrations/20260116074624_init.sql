@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 -- Таблица для метрик с историей изменений
 CREATE TABLE metrics (
     -- Идентификаторы
@@ -48,3 +50,8 @@ CREATE TRIGGER update_metrics_updated_at
     BEFORE UPDATE ON metrics
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+-- +goose StatementEnd
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS metrics;
+-- +goose StatementEnd

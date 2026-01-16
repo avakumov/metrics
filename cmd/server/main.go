@@ -5,6 +5,7 @@ import (
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/server/config"
+	"github.com/avakumov/metrics/internal/server/database"
 	"github.com/avakumov/metrics/internal/server/handlers"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"github.com/avakumov/metrics/internal/server/router"
@@ -20,9 +21,15 @@ func main() {
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
 	//database init
-	db, err := repository.NewDatabase(options.DSN)
+	db, err := database.Connect(options.DSN)
 	if err != nil {
 		logger.Log.Error("failed to connect db", zap.String("DSN", options.DSN), zap.Error(err))
+	}
+
+	//apply migrations
+	err = database.RunMigrations(db.SQLDB)
+	if err != nil {
+		logger.Log.Error("failed migrations db", zap.Error(err))
 	}
 
 	metricsRepo := repository.NewMemoryRepository()

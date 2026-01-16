@@ -1,8 +1,10 @@
-package repository
+package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	_ "github.com/lib/pq"
 	"time"
 
 	"github.com/avakumov/metrics/internal/logger"
@@ -10,10 +12,11 @@ import (
 )
 
 type Database struct {
-	Pool *pgxpool.Pool
+	Pool  *pgxpool.Pool
+	SQLDB *sql.DB
 }
 
-func NewDatabase(DSN string) (*Database, error) {
+func Connect(DSN string) (*Database, error) {
 
 	config, err := pgxpool.ParseConfig(DSN)
 	if err != nil {
@@ -38,8 +41,20 @@ func NewDatabase(DSN string) (*Database, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	logger.Log.Info("✅ Connected to PostgreSQL by Pool")
+
+	// Создаём sql.DB для миграций
+	sqlDB, err := sql.Open("postgres", DSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse connection string: %w", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
 	logger.Log.Info("✅ Connected to PostgreSQL")
-	return &Database{Pool: pool}, nil
+
+	return &Database{Pool: pool, SQLDB: sqlDB}, nil
 }
 
 func (db *Database) Close() {

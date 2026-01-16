@@ -7,6 +7,7 @@ import (
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
+	"github.com/avakumov/metrics/internal/server/database"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"go.uber.org/zap"
 )
@@ -15,10 +16,10 @@ type MetricService struct {
 	metricsRepo   repository.Repository
 	storeInterval int
 	storeFilepath string
-	DB            *repository.Database
+	DB            *database.Database
 }
 
-func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int, db *repository.Database) MetricService {
+func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int, db *database.Database) MetricService {
 	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath, DB: db}
 }
 
