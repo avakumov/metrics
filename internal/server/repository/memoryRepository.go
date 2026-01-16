@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -24,29 +26,69 @@ func NewMemoryRepository() *MemoryRepository {
 
 }
 
-func (r *MemoryRepository) Restore(filepath string) {
+func (r *MemoryRepository) RestoreFromFile(filepath string) error {
 
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
 		logger.Log.Info("Storage file does not exist, starting fresh")
-		return
+		return fmt.Errorf("file with metrics is not exist")
 	}
 
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 		logger.Log.Error("read file error, starting fresh", zap.Error(err))
-		return
+		return err
 	}
 	var metrics []models.Metric
 	err = json.Unmarshal(data, &metrics)
 	if err != nil {
-		logger.Log.Error("unmarshal json error, starting fresh", zap.Error(err))
-		return
+		return err
 	}
 	err = r.SaveMetrics(metrics)
 	if err != nil {
-		logger.Log.Error("restore metrics from file error", zap.Error(err))
-		return
+		return err
 	}
+
+	logger.Log.Sugar().Infof("succesfully restored %d metrics from file", len(metrics))
+	return nil
+}
+
+func (r *MemoryRepository) RestoreFromDB(pool *pgxpool.Pool) error {
+	if pool == nil {
+		return fmt.Errorf("database connection pool is nil")
+	}
+
+	query := `SELECT id, m_type, delta, value FROM metrics ORDER BY id`
+	ctx := context.Background()
+	rows, err := pool.Query(ctx, query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var metrics []models.Metric
+	for rows.Next() {
+		var m models.Metric
+		err := rows.Scan(
+			&m.ID,
+			&m.MType,
+			&m.Delta,
+			&m.Value,
+		)
+		if err != nil {
+			return err
+		}
+		metrics = append(metrics, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	err = r.SaveMetrics(metrics)
+	if err != nil {
+		return err
+	}
+	logger.Log.Sugar().Infof("succesfully restored %d metrics from database", len(metrics))
+	return nil
 }
 
 func (r *MemoryRepository) GetMetricByID(id string) (models.Metric, error) {

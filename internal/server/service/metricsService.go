@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -36,7 +38,7 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 	}
 	//сохраняем синхронно в файл если не задан интервал сохранения
 	if s.storeInterval == 0 {
-		err = s.saveMetricInFile()
+		err = s.store()
 		if err != nil {
 			return err
 		}
@@ -63,20 +65,39 @@ func (s *MetricService) saveMetricsWithPeriod() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		err := s.saveMetricInFile()
+		err := s.store()
 		if err != nil {
-			logger.Log.Error("error on save to file", zap.Error(err))
+			logger.Log.Error("store data error:", zap.Error(err))
 		}
+
 	}
 }
 
-func (s *MetricService) saveMetricInFile() error {
-
-	logger.Log.Debug("Auto-saving metrics...")
+func (s *MetricService) store() error {
 	metrics, err := s.metricsRepo.FindAll()
 	if err != nil {
 		return err
 	}
+	//store in database
+	if s.DB != nil && s.DB.Pool != nil {
+		err = s.storeInDB(metrics)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	//store in file
+	if s.storeFilepath != "" {
+		err = s.storeInFile(metrics)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return fmt.Errorf("store not executed")
+}
+func (s *MetricService) storeInFile(metrics []models.Metric) error {
+
 	data, err := json.MarshalIndent(metrics, "", "   ")
 	if err != nil {
 		return err
@@ -85,6 +106,31 @@ func (s *MetricService) saveMetricInFile() error {
 	if err != nil {
 		return err
 	}
-	logger.Log.Debug("Auto-save completed")
+	logger.Log.Debug("Auto-save in file completed")
+	return nil
+}
+
+func (s *MetricService) storeInDB(metrics []models.Metric) error {
+	query := `
+	INSERT INTO metrics (id, m_type, delta, value)
+	VALUES ($1, $2, $3, $4)
+  ON CONFLICT (id, m_type) 
+  DO UPDATE SET 
+    delta = EXCLUDED.delta,
+    value = EXCLUDED.value,
+    hash = EXCLUDED.hash,
+    updated_at = CURRENT_TIMESTAMP
+	`
+	pool := s.DB.Pool
+	ctx := context.Background()
+	for _, metric := range metrics {
+
+		_, err := pool.Exec(ctx, query, metric.ID, metric.MType, metric.Delta, metric.Value)
+		if err != nil {
+			return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
+		}
+	}
+
+	logger.Log.Debug("Auto-saving metrics in DB completed")
 	return nil
 }
