@@ -44,7 +44,10 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigChan
-	fmt.Println("Shutting down...")
 	cancel()
-	time.Sleep(1 * time.Second)
+	cleanup()
+}
+
+func cleanup() {
+	fmt.Println("Cleanup dev application")
 }
