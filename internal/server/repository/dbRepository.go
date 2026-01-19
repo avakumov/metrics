@@ -77,8 +77,11 @@ func NewDBRepository(DSN string) (*DBRepository, error) {
 }
 
 func (db *DBRepository) GetAll() ([]models.Metric, error) {
-	ctx := context.Background()
 	pool := db.Pool
+	if pool == nil {
+		return nil, fmt.Errorf("pool of database repository is nil")
+	}
+	ctx := context.Background()
 
 	query := `
 	SELECT id, m_type, delta, value FROM metrics
@@ -121,8 +124,12 @@ func (db *DBRepository) GetAll() ([]models.Metric, error) {
 }
 
 func (db *DBRepository) GetMetricByID(id string) (*models.Metric, error) {
-	ctx := context.Background()
 	pool := db.Pool
+	if pool == nil {
+		return nil, fmt.Errorf("pool of database repository is nil")
+	}
+
+	ctx := context.Background()
 
 	query := `
 	SELECT id, m_type, delta, value FROM metrics WHERE id = $1
@@ -158,6 +165,10 @@ func (db *DBRepository) GetMetricByID(id string) (*models.Metric, error) {
 
 func (db *DBRepository) SaveMetric(metric models.Metric) error {
 	pool := db.Pool
+	if pool == nil {
+		return fmt.Errorf("pool of database repository is nil")
+	}
+
 	ctx := context.Background()
 
 	query := `
@@ -179,6 +190,10 @@ func (db *DBRepository) SaveMetric(metric models.Metric) error {
 }
 
 func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
+
+	if db.Pool == nil {
+		return fmt.Errorf("pool of database repository is nil")
+	}
 	ctx := context.Background()
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
@@ -207,6 +222,10 @@ func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
 
 func (db *DBRepository) DeleteMetricByID(id string) error {
 	pool := db.Pool
+
+	if pool == nil {
+		return fmt.Errorf("pool of database repository is nil")
+	}
 	ctx := context.Background()
 
 	query := `
@@ -225,10 +244,18 @@ func (db *DBRepository) DeleteMetricByID(id string) error {
 }
 
 func (db *DBRepository) Ping(ctx context.Context) error {
+
+	if db.Pool == nil {
+		return fmt.Errorf("pool of database repository is nil")
+	}
 	return db.Pool.Ping(ctx)
 }
 
 func (db *DBRepository) Close() {
+
+	if db.Pool == nil {
+		return
+	}
 	db.Pool.Close()
 	logger.Log.Info("✅ Closed to PostgreSQL")
 }

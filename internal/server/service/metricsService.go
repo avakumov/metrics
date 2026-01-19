@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/avakumov/metrics/internal/logger"
@@ -15,24 +16,18 @@ type MetricService struct {
 	metricsRepo   repository.Repository
 	storeRepo     repository.Repository
 	storeInterval int
-	restore       bool
+	isRestore     bool
 }
 
 func NewMetricService(repo repository.Repository, storeRepository repository.Repository, options config.Options) MetricService {
-	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: options.StoreInterval, restore: options.Restore}
+	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: options.StoreInterval, isRestore: options.Restore}
 }
 
 func (s *MetricService) Init() {
 	//restore data from store
-	if s.restore {
-		metrics, err := s.storeRepo.GetAll()
-		if err != nil {
-			logger.Log.Error("restore error in read from store:", zap.Error(err))
-		}
-		err = s.metricsRepo.SaveMetrics(metrics)
-		if err != nil {
-			logger.Log.Error("restore error in save metrics in memo:", zap.Error(err))
-		}
+	if s.isRestore {
+		err := s.restore()
+		logger.Log.Error("restore error:", zap.Error(err))
 	}
 
 	if s.storeInterval > 0 {
@@ -95,7 +90,31 @@ func (s *MetricService) saveMetricsWithPeriod() {
 	}
 }
 
+func (s *MetricService) restore() error {
+	if s.metricsRepo == nil {
+		return fmt.Errorf("metric repo is nil")
+	}
+	if s.storeRepo == nil {
+		return fmt.Errorf("store repo is nil")
+	}
+	metrics, err := s.storeRepo.GetAll()
+	if err != nil {
+		return err
+	}
+	err = s.metricsRepo.SaveMetrics(metrics)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *MetricService) store() error {
+	if s.metricsRepo == nil {
+		return fmt.Errorf("metric repo is nil")
+	}
+	if s.storeRepo == nil {
+		return fmt.Errorf("store repo is nil")
+	}
 	metrics, err := s.metricsRepo.GetAll()
 	if err != nil {
 		return err
