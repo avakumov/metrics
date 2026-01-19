@@ -2,15 +2,10 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"sync"
 
-	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
 )
 
 type MemoryRepository struct {
@@ -26,93 +21,21 @@ func NewMemoryRepository() *MemoryRepository {
 
 }
 
-func (r *MemoryRepository) RestoreFromFile(filepath string) error {
-
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		logger.Log.Info("Storage file does not exist, starting fresh")
-		return fmt.Errorf("file with metrics is not exist")
-	}
-
-	data, err := os.ReadFile(filepath)
-	if err != nil {
-		logger.Log.Error("read file error, starting fresh", zap.Error(err))
-		return err
-	}
-	var metrics []models.Metric
-	err = json.Unmarshal(data, &metrics)
-	if err != nil {
-		return err
-	}
-	err = r.SaveMetrics(metrics)
-	if err != nil {
-		return err
-	}
-
-	logger.Log.Sugar().Infof("succesfully restored %d metrics from file", len(metrics))
-	return nil
-}
-
-func (r *MemoryRepository) RestoreFromDB(pool *pgxpool.Pool) error {
-	if pool == nil {
-		return fmt.Errorf("database connection pool is nil")
-	}
-
-	query := `SELECT id, m_type, delta, value FROM metrics ORDER BY id`
-	ctx := context.Background()
-	rows, err := pool.Query(ctx, query)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	var metrics []models.Metric
-	for rows.Next() {
-		var m models.Metric
-		err := rows.Scan(
-			&m.ID,
-			&m.MType,
-			&m.Delta,
-			&m.Value,
-		)
-		if err != nil {
-			return err
-		}
-		metrics = append(metrics, m)
-	}
-
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	err = r.SaveMetrics(metrics)
-	if err != nil {
-		return err
-	}
-	logger.Log.Sugar().Infof("succesfully restored %d metrics from database", len(metrics))
-	return nil
-}
-
-func (r *MemoryRepository) GetMetricByID(id string) (models.Metric, error) {
+func (r *MemoryRepository) GetMetricByID(id string) (*models.Metric, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	metric, ok := r.metrics[id]
 	if !ok {
-		return models.Metric{}, fmt.Errorf("not found metric: %s", id)
+		return nil, fmt.Errorf("not found metric: %s", id)
 	}
-	return metric, nil
+	return &metric, nil
 }
 
 func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if metric.MType == models.Counter {
-		existMetric, ok := r.metrics[metric.ID]
-		if ok {
-			if existMetric.Delta != nil {
-				*metric.Delta += *existMetric.Delta
-			}
-		}
-	}
+
 	r.metrics[metric.ID] = metric
 	return nil
 }
@@ -139,7 +62,7 @@ func (r *MemoryRepository) DeleteMetricByID(id string) error {
 	return nil
 }
 
-func (r *MemoryRepository) FindAll() ([]models.Metric, error) {
+func (r *MemoryRepository) GetAll() ([]models.Metric, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -148,5 +71,13 @@ func (r *MemoryRepository) FindAll() ([]models.Metric, error) {
 		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+
+}
+
+func (r *MemoryRepository) Ping(ctx context.Context) error {
+	return fmt.Errorf("ping is not available. The memory repository is being used")
+}
+
+func (r *MemoryRepository) Close() {
 
 }

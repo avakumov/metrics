@@ -245,7 +245,9 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo, "data.json", 800, nil)
+	storeRepo, err := repository.NewFileRepository("data.json")
+	require.NoError(t, err)
+	metricService := service.NewMetricService(metricsRepo, storeRepo, 800)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -290,7 +292,9 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 // TestGzipDecoding проверяет декодирование входящих gzip данных
 func TestGzipDecoding(t *testing.T) {
 	metricsRepo := repository.NewMemoryRepository()
-	metricService := service.NewMetricService(metricsRepo, "data.json", 800, nil)
+	storeRepo, err := repository.NewFileRepository("data.json")
+	require.NoError(t, err)
+	metricService := service.NewMetricService(metricsRepo, storeRepo, 800)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -307,10 +311,8 @@ func TestGzipDecoding(t *testing.T) {
 	// Сжимаем данные gzip
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	_, err := gz.Write(data)
-	if err != nil {
-		t.Errorf("compress error %+v", err)
-	}
+	_, err = gz.Write(data)
+	require.NoError(t, err)
 	gz.Close()
 
 	// Создаем запрос с gzip сжатием
@@ -327,7 +329,4 @@ func TestGzipDecoding(t *testing.T) {
 		t.Errorf("Handler вернул BadRequest для gzip запроса. Возможно декодирование не работает")
 	}
 
-	// Проверяем, что данные корректно распаковались и обработались
-	// Для этого можно проверить, что метрика сохранилась
-	// или что ответ не содержит ошибок формата
 }

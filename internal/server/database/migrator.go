@@ -20,7 +20,10 @@ func RunMigrations(db *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 
 	//set dialect DB
-	goose.SetDialect("postgres")
+	err := goose.SetDialect("postgres")
+	if err != nil {
+		return err
+	}
 
 	if err := goose.Up(db, "migrations"); err != nil {
 		return err

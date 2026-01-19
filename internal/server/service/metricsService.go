@@ -2,27 +2,22 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
-	"github.com/avakumov/metrics/internal/server/database"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"go.uber.org/zap"
 )
 
 type MetricService struct {
 	metricsRepo   repository.Repository
+	storeRepo     repository.Repository
 	storeInterval int
-	storeFilepath string
-	DB            *database.Database
 }
 
-func NewMetricService(repo repository.Repository, storeFilepath string, storeInterval int, db *database.Database) MetricService {
-	return MetricService{metricsRepo: repo, storeInterval: storeInterval, storeFilepath: storeFilepath, DB: db}
+func NewMetricService(repo repository.Repository, storeRepository repository.Repository, storeInterval int) MetricService {
+	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: storeInterval}
 }
 
 func (s *MetricService) Init() {
@@ -31,7 +26,20 @@ func (s *MetricService) Init() {
 	}
 }
 
+func (s *MetricService) Ping(ctx context.Context) error {
+	return s.storeRepo.Ping(ctx)
+}
+
 func (s *MetricService) SaveMetric(metric models.Metric) error {
+	existMetric, _ := s.metricsRepo.GetMetricByID(metric.ID)
+	if existMetric != nil {
+		if metric.MType == models.Counter {
+			if existMetric.Delta != nil {
+				*metric.Delta += *existMetric.Delta
+			}
+
+		}
+	}
 	err := s.metricsRepo.SaveMetric(metric)
 	if err != nil {
 		return err
@@ -40,19 +48,19 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 	if s.storeInterval == 0 {
 		err = s.store()
 		if err != nil {
-			return err
+			logger.Log.Error("store data error:", zap.Error(err))
 		}
 	}
 
 	return nil
 }
 
-func (s *MetricService) GetMetric(id string) (models.Metric, error) {
+func (s *MetricService) GetMetric(id string) (*models.Metric, error) {
 	return s.metricsRepo.GetMetricByID(id)
 }
 
 func (s *MetricService) GetAllMetric() ([]models.Metric, error) {
-	return s.metricsRepo.FindAll()
+	return s.metricsRepo.GetAll()
 }
 
 func (s *MetricService) RemoveMetric(id string) error {
@@ -74,63 +82,14 @@ func (s *MetricService) saveMetricsWithPeriod() {
 }
 
 func (s *MetricService) store() error {
-	metrics, err := s.metricsRepo.FindAll()
+	metrics, err := s.metricsRepo.GetAll()
 	if err != nil {
 		return err
 	}
-	//store in database
-	if s.DB != nil && s.DB.Pool != nil {
-		err = s.storeInDB(metrics)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	//store in file
-	if s.storeFilepath != "" {
-		err = s.storeInFile(metrics)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	return fmt.Errorf("store not executed")
-}
-func (s *MetricService) storeInFile(metrics []models.Metric) error {
-
-	data, err := json.MarshalIndent(metrics, "", "   ")
+	err = s.storeRepo.SaveMetrics(metrics)
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(s.storeFilepath, data, 0666)
-	if err != nil {
-		return err
-	}
-	logger.Log.Debug("Auto-save in file completed")
-	return nil
-}
-
-func (s *MetricService) storeInDB(metrics []models.Metric) error {
-	query := `
-	INSERT INTO metrics (id, m_type, delta, value)
-	VALUES ($1, $2, $3, $4)
-  ON CONFLICT (id, m_type) 
-  DO UPDATE SET 
-    delta = EXCLUDED.delta,
-    value = EXCLUDED.value,
-    hash = EXCLUDED.hash,
-    updated_at = CURRENT_TIMESTAMP
-	`
-	pool := s.DB.Pool
-	ctx := context.Background()
-	for _, metric := range metrics {
-
-		_, err := pool.Exec(ctx, query, metric.ID, metric.MType, metric.Delta, metric.Value)
-		if err != nil {
-			return fmt.Errorf("failed to save metric %s: %w", metric.ID, err)
-		}
-	}
-
-	logger.Log.Debug("Auto-saving metrics in DB completed")
+	logger.Log.Debug("store metrics is success")
 	return nil
 }

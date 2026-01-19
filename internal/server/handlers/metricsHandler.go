@@ -21,7 +21,6 @@ import (
 
 type MetricHandler struct {
 	metricService service.MetricService
-	templatePath  string
 }
 
 type Metric struct {
@@ -194,16 +193,10 @@ func (h *MetricHandler) BadRequest(w http.ResponseWriter, r *http.Request) {
 
 func (h *MetricHandler) PingDB(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if h.metricService.DB == nil || h.metricService.DB.Pool == nil {
-		logger.Log.Error("database connection is not initialized")
-		http.Error(w, "database not configured", http.StatusInternalServerError)
-		return
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	err := h.metricService.DB.Pool.Ping(ctx)
+	err := h.metricService.Ping(ctx)
 	if err != nil {
 		//база данных не доступна
 		logger.Log.Error("database ping failed",
@@ -215,8 +208,13 @@ func (h *MetricHandler) PingDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//успеншый пинг базы данных
+	_, err = w.Write([]byte("Database is available"))
+	if err != nil {
+		logger.Log.Error("failed to write body", zap.Error(err))
+		http.Error(w, "failed to write body", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Database is available"))
 }
 
 // для извлеыения обновления метрики из тела запроса json или из url
