@@ -53,24 +53,12 @@ func NewDBRepository(DSN string) (*DBRepository, error) {
 		return db, fmt.Errorf("failed to ping database: %w", err)
 	}
 	db.Pool = pool
-
 	logger.Log.Info("✅ Connected to PostgreSQL by Pool")
 
-	// Создаём sql.DB для миграций
-	sqlDB, err := sql.Open("postgres", DSN)
+	//TODO:перенести куда-нибудь
+	err = database.RunMigrations(DSN)
 	if err != nil {
-		return db, fmt.Errorf("failed to parse connection string: %w", err)
-	}
-	if err := sqlDB.Ping(); err != nil {
-		return db, fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	logger.Log.Info("✅ Connected to PostgreSQL")
-
-	//apply migrations
-	err = database.RunMigrations(sqlDB)
-	if err != nil {
-		logger.Log.Error("failed to apply migrations db", zap.Error(err))
+		logger.Log.Error("migration error:", zap.Error(err))
 	}
 
 	return db, nil

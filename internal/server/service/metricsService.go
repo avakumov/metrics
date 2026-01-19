@@ -27,7 +27,9 @@ func (s *MetricService) Init() {
 	//restore data from store
 	if s.isRestore {
 		err := s.restore()
-		logger.Log.Error("restore error:", zap.Error(err))
+		if err != nil {
+			logger.Log.Error("restore error:", zap.Error(err))
+		}
 	}
 
 	if s.storeInterval > 0 {

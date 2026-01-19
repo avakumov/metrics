@@ -12,15 +12,24 @@ import (
 //go:embed migrations/*.sql
 var embedMigrations embed.FS
 
-func RunMigrations(db *sql.DB) error {
-	if db == nil {
-		return fmt.Errorf("database connetioction is nil")
+func RunMigrations(DSN string) error {
+
+	db, err := sql.Open("postgres", DSN)
+	if err != nil {
+		return fmt.Errorf("failed to parse connection string: %w", err)
 	}
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	defer db.Close()
+	logger.Log.Info("✅ Connected to PostgreSQL for migrate")
+
 	//install embedded file system
 	goose.SetBaseFS(embedMigrations)
 
 	//set dialect DB
-	err := goose.SetDialect("postgres")
+	err = goose.SetDialect("postgres")
 	if err != nil {
 		return err
 	}
@@ -33,10 +42,21 @@ func RunMigrations(db *sql.DB) error {
 	return nil
 }
 
-func RollbackMigration(db *sql.DB) error {
-	if db == nil {
-		return fmt.Errorf("database connetioction is nil")
+func RollbackMigration(DSN string) error {
+
+	db, err := sql.Open("postgres", DSN)
+	if err != nil {
+		return fmt.Errorf("failed to parse connection string: %w", err)
 	}
+
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	logger.Log.Info("✅ Connected to PostgreSQL for migrate")
+
 	goose.SetBaseFS(embedMigrations)
 	return goose.Down(db, "migrations")
 }
