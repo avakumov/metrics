@@ -27,7 +27,7 @@ func main() {
 		logger.Log.Error("failed to create store repository:", zap.Any("Options", options), zap.Error(err))
 	}
 
-	metricService := service.NewMetricService(memoRepo, storeRepository, options.StoreInterval)
+	metricService := service.NewMetricService(memoRepo, storeRepository, options)
 	metricService.Init()
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	err = http.ListenAndServe(options.Address, router.MetricsRouter(metricHandler))
@@ -38,10 +38,10 @@ func main() {
 
 func getStore(options config.Options) (repository.Repository, error) {
 
-	if options.Restore && options.DSN != "" {
+	if options.DSN != "" {
 		return repository.NewDBRepository(options.DSN)
 	}
-	if options.Restore && options.FileStoragePath != "" {
+	if options.FileStoragePath != "" {
 		return repository.NewFileRepository(options.FileStoragePath)
 	}
 	return nil, nil

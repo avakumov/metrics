@@ -6,6 +6,7 @@ import (
 
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
+	"github.com/avakumov/metrics/internal/server/config"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"go.uber.org/zap"
 )
@@ -14,13 +15,26 @@ type MetricService struct {
 	metricsRepo   repository.Repository
 	storeRepo     repository.Repository
 	storeInterval int
+	restore       bool
 }
 
-func NewMetricService(repo repository.Repository, storeRepository repository.Repository, storeInterval int) MetricService {
-	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: storeInterval}
+func NewMetricService(repo repository.Repository, storeRepository repository.Repository, options config.Options) MetricService {
+	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: options.StoreInterval, restore: options.Restore}
 }
 
 func (s *MetricService) Init() {
+	//restore data from store
+	if s.restore {
+		metrics, err := s.storeRepo.GetAll()
+		if err != nil {
+			logger.Log.Error("restore error in read from store:", zap.Error(err))
+		}
+		err = s.metricsRepo.SaveMetrics(metrics)
+		if err != nil {
+			logger.Log.Error("restore error in save metrics in memo:", zap.Error(err))
+		}
+	}
+
 	if s.storeInterval > 0 {
 		go s.saveMetricsWithPeriod()
 	}

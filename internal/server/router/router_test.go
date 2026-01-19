@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/avakumov/metrics/internal/server/config"
 	"github.com/avakumov/metrics/internal/server/handlers"
 	"github.com/avakumov/metrics/internal/server/repository"
 	"github.com/avakumov/metrics/internal/server/service"
@@ -247,7 +248,10 @@ func TestUpdateMetricHandler(t *testing.T) {
 	metricsRepo := repository.NewMemoryRepository()
 	storeRepo, err := repository.NewFileRepository("data.json")
 	require.NoError(t, err)
-	metricService := service.NewMetricService(metricsRepo, storeRepo, 800)
+	options := config.Options{
+		StoreInterval: 800,
+	}
+	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -294,7 +298,11 @@ func TestGzipDecoding(t *testing.T) {
 	metricsRepo := repository.NewMemoryRepository()
 	storeRepo, err := repository.NewFileRepository("data.json")
 	require.NoError(t, err)
-	metricService := service.NewMetricService(metricsRepo, storeRepo, 800)
+
+	options := config.Options{
+		StoreInterval: 800,
+	}
+	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
