@@ -17,10 +17,20 @@ type MetricService struct {
 	storeRepo     repository.Repository
 	storeInterval int
 	isRestore     bool
+	ctx           context.Context
 }
 
-func NewMetricService(repo repository.Repository, storeRepository repository.Repository, options config.Options) MetricService {
-	return MetricService{metricsRepo: repo, storeRepo: storeRepository, storeInterval: options.StoreInterval, isRestore: options.Restore}
+func NewMetricService(
+	ctx context.Context,
+	repo repository.Repository,
+	storeRepository repository.Repository,
+	options config.Options) MetricService {
+	return MetricService{
+		metricsRepo:   repo,
+		storeRepo:     storeRepository,
+		storeInterval: options.StoreInterval,
+		isRestore:     options.Restore,
+		ctx:           ctx}
 }
 
 func (s *MetricService) Init() {
@@ -79,16 +89,24 @@ func (s *MetricService) RemoveMetric(id string) error {
 }
 
 func (s *MetricService) saveMetricsWithPeriod() {
-
 	ticker := time.NewTicker(time.Duration(s.storeInterval) * time.Second)
 	defer ticker.Stop()
-
-	for range ticker.C {
-		err := s.store()
-		if err != nil {
-			logger.Log.Error("store data error:", zap.Error(err))
+	for {
+		select {
+		case <-s.ctx.Done():
+			err := s.store()
+			if err != nil {
+				logger.Log.Error("store data error:", zap.Error(err))
+			}
+			time.Sleep(2 * time.Second)
+			logger.Log.Info("shutdown on save metric with period success")
+			return
+		case <-ticker.C:
+			err := s.store()
+			if err != nil {
+				logger.Log.Error("store data error:", zap.Error(err))
+			}
 		}
-
 	}
 }
 
