@@ -36,7 +36,7 @@ func NewMetricService(
 func (s *MetricService) Init() {
 	//restore data from store
 	if s.isRestore {
-		err := s.restore()
+		err := s.restoreMetrics()
 		if err != nil {
 			logger.Log.Error("restore error:", zap.Error(err))
 		}
@@ -65,9 +65,9 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 	if err != nil {
 		return err
 	}
-	//сохраняем синхронно в файл если не задан интервал сохранения
+	//сохраняем только одну запись
 	if s.storeInterval == 0 {
-		err = s.store()
+		err = s.storeMetric(metric)
 		if err != nil {
 			logger.Log.Error("store data error:", zap.Error(err))
 		}
@@ -110,14 +110,14 @@ func (s *MetricService) saveMetricsWithPeriod() {
 	for {
 		select {
 		case <-s.ctx.Done():
-			err := s.store()
+			err := s.storeMetrics()
 			if err != nil {
 				logger.Log.Error("store data error:", zap.Error(err))
 			}
 			logger.Log.Info("shutdown on save metric with period success")
 			return
 		case <-ticker.C:
-			err := s.store()
+			err := s.storeMetrics()
 			if err != nil {
 				logger.Log.Error("store data error:", zap.Error(err))
 			}
@@ -125,7 +125,7 @@ func (s *MetricService) saveMetricsWithPeriod() {
 	}
 }
 
-func (s *MetricService) restore() error {
+func (s *MetricService) restoreMetrics() error {
 	if s.metricsRepo == nil {
 		return fmt.Errorf("metric repo is nil")
 	}
@@ -140,10 +140,27 @@ func (s *MetricService) restore() error {
 	if err != nil {
 		return err
 	}
+
+	logger.Log.Debug("restore metric is success")
 	return nil
 }
 
-func (s *MetricService) store() error {
+func (s *MetricService) storeMetric(metric models.Metric) error {
+	if s.metricsRepo == nil {
+		return fmt.Errorf("metric repo is nil")
+	}
+	if s.storeRepo == nil {
+		return fmt.Errorf("store repo is nil")
+	}
+	err := s.storeRepo.SaveMetric(metric)
+	if err != nil {
+		return err
+	}
+	logger.Log.Debug("store metric is success: ", zap.String("ID", metric.ID))
+	return nil
+}
+
+func (s *MetricService) storeMetrics() error {
 	if s.metricsRepo == nil {
 		return fmt.Errorf("metric repo is nil")
 	}
