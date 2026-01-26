@@ -155,6 +155,30 @@ func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *MetricHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+
+	defer r.Body.Close()
+
+	var metrics []models.Metric
+	err := json.NewDecoder(r.Body).Decode(&metrics)
+	if err != nil {
+		logger.Log.Error("failed to decode json", zap.Error(err))
+		http.Error(w, "decode json with error", http.StatusBadRequest)
+		return
+	}
+	if len(metrics) == 0 {
+		http.Error(w, "No metrics provided", http.StatusBadRequest)
+	}
+	err = h.metricService.SaveMetrics(metrics)
+	if err != nil {
+		logger.Log.Error("error on save metrics", zap.Error(err))
+		http.Error(w, "save metrics with error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) {
 	sM := models.Metric{}
 	if err := json.NewDecoder(r.Body).Decode(&sM); err != nil {

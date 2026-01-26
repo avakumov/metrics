@@ -38,7 +38,7 @@ func GetOptions() Options {
 	options := Options{
 		Address:         "localhost:8080",
 		FileStoragePath: "data.json",
-		StoreInterval:   300,
+		StoreInterval:   15,
 		Restore:         true,
 		LogLevel:        "info",
 	}

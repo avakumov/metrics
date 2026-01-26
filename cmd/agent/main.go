@@ -6,6 +6,7 @@ import (
 	"github.com/avakumov/metrics/internal/agent"
 	"github.com/avakumov/metrics/internal/agent/config"
 	"github.com/avakumov/metrics/internal/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -29,7 +30,11 @@ func main() {
 		case <-collectTicker.C:
 			collector.Collect()
 		case <-sendTicker.C:
-			collector.PostMetricsByJSON()
+			//collector.PostMetricsByJSON()
+			err := collector.PostMetrics()
+			if err != nil {
+				logger.Log.Error("post metrics error", zap.Error(err))
+			}
 		}
 	}
 }

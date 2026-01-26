@@ -5,6 +5,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/avakumov/metrics/internal/logger"
+	"go.uber.org/zap"
 )
 
 // GzipDecoderMiddleware распаковывает gzip-сжатые POST-запросы
@@ -20,6 +23,7 @@ func GzipDecoderMiddleware(next http.Handler) http.Handler {
 				// Создаем gzip reader
 				gz, err := gzip.NewReader(r.Body)
 				if err != nil {
+					logger.Log.Error("failed to create gzip reader ", zap.Error(err))
 					http.Error(w, "failed to create gzip reader: "+err.Error(),
 						http.StatusBadRequest)
 					return

@@ -76,6 +76,22 @@ func (s *MetricService) SaveMetric(metric models.Metric) error {
 	return nil
 }
 
+func (s *MetricService) SaveMetrics(metrics []models.Metric) error {
+	if metrics == nil {
+		return fmt.Errorf("metrics is nil")
+	}
+	if len(metrics) == 0 {
+		return fmt.Errorf("metrics is empty")
+	}
+	for _, m := range metrics {
+		err := s.SaveMetric(m)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *MetricService) GetMetric(id string) (*models.Metric, error) {
 	return s.metricsRepo.GetMetricByID(id)
 }
@@ -98,7 +114,6 @@ func (s *MetricService) saveMetricsWithPeriod() {
 			if err != nil {
 				logger.Log.Error("store data error:", zap.Error(err))
 			}
-			time.Sleep(2 * time.Second)
 			logger.Log.Info("shutdown on save metric with period success")
 			return
 		case <-ticker.C:

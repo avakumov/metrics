@@ -244,6 +244,45 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/ping",
 			expectedStatus: http.StatusInternalServerError,
 		},
+		{
+			name:           "Update patch by json on /updates/",
+			method:         http.MethodPost,
+			contentType:    "application/json",
+			path:           "/updates/",
+			expectedStatus: http.StatusOK,
+			body: `[
+			{"id":"testGauge01", "type":"gauge", "value":50}, 
+			{"id":"testGauge02", "type":"gauge", "value":200.5},
+			{"id":"testCounter", "type":"counter", "delta":5}
+			]`,
+		},
+		{
+			name:             "Get gauge metric by json on /value/",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             ` {"id":"testGauge01", "type":"gauge"}`,
+			expectedResponse: `{"id":"testGauge01", "type":"gauge", "value":50}`,
+		},
+		{
+			name:             "Get gauge metric by json on /value/",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             ` {"id":"testGauge02", "type":"gauge"}`,
+			expectedResponse: `{"id":"testGauge02", "type":"gauge", "value":200.5}`,
+		},
+		{
+			name:             "Get counter metric by json on /value/",
+			method:           http.MethodPost,
+			contentType:      "application/json",
+			path:             "/value/",
+			expectedStatus:   http.StatusOK,
+			body:             ` {"id":"testCounter", "type":"counter"}`,
+			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":19}`,
+		},
 	}
 
 	metricsRepo := repository.NewMemoryRepository()

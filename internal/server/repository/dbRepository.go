@@ -182,16 +182,22 @@ func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
 	if db.Pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer func() {
+		if tx != nil {
+			tx.Rollback(ctx) //nolint:errcheck
+		}
+	}()
 
 	query := `
-	INSERT INTO metrics (id, m_type, delta, value)
-	VALUES ($1, $2, $3, $4)
+	INSERT INTO metrics (id, m_type, delta, value, hash)
+	VALUES ($1, $2, $3, $4, $5)
   ON CONFLICT (id, m_type) 
   DO UPDATE SET 
     delta = EXCLUDED.delta,
@@ -199,13 +205,33 @@ func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
     hash = EXCLUDED.hash,
     updated_at = CURRENT_TIMESTAMP
 	`
+
+	batch := &pgx.Batch{}
 	for _, m := range metrics {
-		_, err := tx.Exec(ctx, query, m.ID, m.MType, m.Delta, m.Value)
+		batch.Queue(query, m.ID, m.MType, m.Delta, m.Value, m.Hash)
+	}
+	br := tx.SendBatch(ctx, batch)
+	defer br.Close()
+
+	// Проверяем результаты
+	for range metrics {
+		_, err := br.Exec()
 		if err != nil {
-			return fmt.Errorf("insert metric %s: %w", m.ID, err)
+			return fmt.Errorf("batch insert error: %w", err)
 		}
 	}
-	return tx.Commit(ctx)
+
+	if err := br.Close(); err != nil {
+		return fmt.Errorf("close batch: %w", err)
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+
+	}
+	tx = nil
+	return nil
+
 }
 
 func (db *DBRepository) DeleteMetricByID(id string) error {

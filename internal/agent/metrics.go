@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"runtime"
 	"strconv"
@@ -85,6 +86,7 @@ func (c *MetricsCollector) Collect() []models.Metric {
 	return c.metrics
 }
 
+// отправка метрик по одной
 func (c *MetricsCollector) PostMetricsByJSON() {
 	metrics := c.getMetrics()
 	for _, metric := range metrics {
@@ -111,6 +113,32 @@ func (c *MetricsCollector) PostMetricsByJSON() {
 			logger.Log.Error("request error", zap.Error(err))
 		}
 	}
+}
+
+// отправка метрик пачкой
+func (c *MetricsCollector) PostMetrics() error {
+	metrics := c.getMetrics()
+	jsonData, err := json.Marshal(metrics)
+	if err != nil {
+		logger.Log.Error("json error", zap.Error(err))
+		return fmt.Errorf("json error: %w", err)
+	}
+	body, err := compressGzip(jsonData)
+	if err != nil {
+		logger.Log.Error("compress with error", zap.Error(err))
+		return err
+	}
+	_, err = c.restyClient.R().
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(body).
+		Post("/updates/")
+
+	if err != nil {
+		logger.Log.Error("request error", zap.Error(err))
+		return fmt.Errorf("request error: %w", err)
+	}
+	return nil
 }
 
 func (c *MetricsCollector) PostMetricsByURL() {

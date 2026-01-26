@@ -14,10 +14,13 @@ func MetricsRouter(metricHandler *handlers.MetricHandler) chi.Router {
 
 	r.Use(middleware.Recoverer)
 	r.Use(logger.LoggerMiddleware)
+
 	r.Use(compress.GzipDecoderMiddleware)
 	r.Use(compress.GzipEncoderMiddleware)
 	r.Route("/", func(r chi.Router) {
 		r.Get("/", metricHandler.GetAll)
+
+		r.Post("/updates/", metricHandler.UpdateMetrics)
 
 		r.Post("/update/{metricType}/{metricName}/{metricValue}", metricHandler.UpdateMetric)
 		r.Post("/update/", metricHandler.UpdateMetric)
