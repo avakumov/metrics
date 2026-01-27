@@ -1,15 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="">
+    <head>
+        <title>{{.Title}}</title>
+        <style>
+            table,
+            th,
+            td {
+                border: 1px solid black;
+                border-collapse: collapse;
+                padding: 3px 5px;
+                text-align: left;
+            }
+        </style>
+    </head>
 
-<head>
-  <title>{{.Title}}</title>
-</head>
-
-<body>
-  <h2>{{.Header}}</h2>
-  {{range $index, $metric := .Metrics}}
-  <div>{{$metric.Name}} = {{$metric.Value}}</div>
-  {{end}}
-</body>
-
+    <body>
+        <h2>{{.Header}}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $index, $metric := .Metrics}}
+                <tr>
+                    <td>{{$metric.ID}}</td>
+                    <td>{{$metric.MType}}</td>
+                    <td>{{$metric.Value}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </body>
 </html>

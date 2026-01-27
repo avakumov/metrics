@@ -23,14 +23,16 @@ type MetricHandler struct {
 	metricService service.MetricService
 }
 
-type Metric struct {
-	Name  string
-	Value string
-}
 type PageData struct {
-	Metrics []Metric
+	Metrics []MetricView
 	Header  string
 	Title   string
+}
+
+type MetricView struct {
+	ID    string
+	MType string
+	Value string
 }
 
 func NewMetricsHandler(metricService service.MetricService) *MetricHandler {
@@ -85,26 +87,29 @@ func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
-		Header: "Metrics",
-		Title:  "All metrics",
+		Header:  "Metrics",
+		Title:   "All metrics",
+		Metrics: []MetricView{},
 	}
 	for _, m := range metrics {
 		if m.MType == models.Gauge {
-			data.Metrics = append(data.Metrics, Metric{
-				Name:  m.ID,
+			data.Metrics = append(data.Metrics, MetricView{
+				ID:    m.ID,
 				Value: strconv.FormatFloat(*m.Value, 'f', -1, 64),
+				MType: m.MType,
 			})
 		}
 		if m.MType == models.Counter {
-			data.Metrics = append(data.Metrics, Metric{
-				Name:  m.ID,
+			data.Metrics = append(data.Metrics, MetricView{
+				ID:    m.ID,
 				Value: strconv.FormatInt(*m.Delta, 10),
+				MType: m.MType,
 			})
 		}
 	}
 
 	sort.Slice(data.Metrics, func(i, j int) bool {
-		return data.Metrics[i].Name < data.Metrics[j].Name
+		return data.Metrics[i].ID < data.Metrics[j].ID
 	})
 	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/allMetrics.html"))
 	//Execute добавляет статус 200
