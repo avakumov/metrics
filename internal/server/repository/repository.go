@@ -7,11 +7,11 @@ import (
 )
 
 type Repository interface {
-	GetMetricByID(id string) (*models.Metric, error)
-	GetAll() ([]models.Metric, error)
-	SaveMetric(metric models.Metric) error
-	SaveMetrics(metrics []models.Metric) error
-	DeleteMetricByID(id string) error
+	GetMetricByID(ctx context.Context, id string) (*models.Metric, error)
+	GetAll(ctx context.Context) ([]models.Metric, error)
+	SaveMetric(ctx context.Context, metric models.Metric) error
+	SaveMetrics(ctx context.Context, metrics []models.Metric) error
+	DeleteMetricByID(ctx context.Context, id string) error
 	Ping(ctx context.Context) error
 	Close()
 }

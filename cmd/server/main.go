@@ -24,9 +24,6 @@ func main() {
 	defer logger.Log.Sync() //nolint:errcheck
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
-	mainContext, mainCancel := context.WithCancel(context.Background())
-	defer mainCancel()
-
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -38,8 +35,12 @@ func main() {
 		logger.Log.Error("failed to create store repository:", zap.Any("Options", options), zap.Error(err))
 	}
 
-	metricService := service.NewMetricService(mainContext, memoRepo, storeRepository, options)
-	metricService.Init()
+	metricService := service.NewMetricService(memoRepo, storeRepository, options)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	metricService.Init(ctx)
+
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	server := http.Server{
 		Addr:    options.Address,
@@ -50,13 +51,13 @@ func main() {
 		err := server.ListenAndServe()
 		if err != nil {
 			logger.Log.Error("failed to start metrics app server", zap.String("address", options.Address), zap.Error(err))
-			mainCancel()
+			cancel()
 		}
 	}()
 
 	<-stop
 	logger.Log.Info("Shutdown signal received")
-	mainCancel()
+	cancel()
 	time.Sleep(2 * time.Second)
 
 }

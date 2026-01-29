@@ -64,12 +64,11 @@ func NewDBRepository(DSN string) (*DBRepository, error) {
 	return db, nil
 }
 
-func (db *DBRepository) GetAll() ([]models.Metric, error) {
+func (db *DBRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
 	pool := db.Pool
 	if pool == nil {
 		return nil, fmt.Errorf("pool of database repository is nil")
 	}
-	ctx := context.Background()
 
 	query := `
 	SELECT id, m_type, delta, value FROM metrics
@@ -111,13 +110,11 @@ func (db *DBRepository) GetAll() ([]models.Metric, error) {
 	return metrics, nil
 }
 
-func (db *DBRepository) GetMetricByID(id string) (*models.Metric, error) {
+func (db *DBRepository) GetMetricByID(ctx context.Context, id string) (*models.Metric, error) {
 	pool := db.Pool
 	if pool == nil {
 		return nil, fmt.Errorf("pool of database repository is nil")
 	}
-
-	ctx := context.Background()
 
 	query := `
 	SELECT id, m_type, delta, value FROM metrics WHERE id = $1
@@ -151,19 +148,17 @@ func (db *DBRepository) GetMetricByID(id string) (*models.Metric, error) {
 	return &m, nil
 }
 
-func (db *DBRepository) SaveMetric(metric models.Metric) error {
+func (db *DBRepository) SaveMetric(ctx context.Context, metric models.Metric) error {
 	pool := db.Pool
 	if pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
 	}
 
-	ctx := context.Background()
-
 	query := `
 	INSERT INTO metrics (id, m_type, delta, value)
 	VALUES ($1, $2, $3, $4)
-  ON CONFLICT (id, m_type) 
-  DO UPDATE SET 
+  ON CONFLICT (id, m_type)
+  DO UPDATE SET
     delta = EXCLUDED.delta,
     value = EXCLUDED.value,
     hash = EXCLUDED.hash,
@@ -177,13 +172,11 @@ func (db *DBRepository) SaveMetric(metric models.Metric) error {
 	return nil
 }
 
-func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
+func (db *DBRepository) SaveMetrics(ctx context.Context, metrics []models.Metric) error {
 
 	if db.Pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	tx, err := db.Pool.Begin(ctx)
 	if err != nil {
@@ -198,8 +191,8 @@ func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
 	query := `
 	INSERT INTO metrics (id, m_type, delta, value, hash)
 	VALUES ($1, $2, $3, $4, $5)
-  ON CONFLICT (id, m_type) 
-  DO UPDATE SET 
+  ON CONFLICT (id, m_type)
+  DO UPDATE SET
     delta = EXCLUDED.delta,
     value = EXCLUDED.value,
     hash = EXCLUDED.hash,
@@ -234,13 +227,12 @@ func (db *DBRepository) SaveMetrics(metrics []models.Metric) error {
 
 }
 
-func (db *DBRepository) DeleteMetricByID(id string) error {
+func (db *DBRepository) DeleteMetricByID(ctx context.Context, id string) error {
 	pool := db.Pool
 
 	if pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
 	}
-	ctx := context.Background()
 
 	query := `
 	DELETE FROM metrics WHERE id = $1

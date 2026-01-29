@@ -44,7 +44,7 @@ func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "metricType")
 	metricName := chi.URLParam(r, "metricName")
 
-	metric, err := h.metricService.GetMetric(metricName)
+	metric, err := h.metricService.GetMetric(r.Context(), metricName)
 	if err != nil {
 		http.Error(rw, "Not found metric", http.StatusNotFound)
 		return
@@ -79,7 +79,7 @@ func (h *MetricHandler) GetMetric(rw http.ResponseWriter, r *http.Request) {
 
 func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	rw.Header().Set("Content-Type", "text/html; charset=utf-8")
-	metrics, err := h.metricService.GetAllMetric()
+	metrics, err := h.metricService.GetAllMetric(r.Context())
 	if err != nil {
 		logger.Log.Error("failed to get all metrics", zap.Error(err))
 		http.Error(rw, "internal server error", http.StatusInternalServerError)
@@ -143,7 +143,7 @@ func (h *MetricHandler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.metricService.SaveMetric(metric)
+	err = h.metricService.SaveMetric(r.Context(), metric)
 	if err != nil {
 		logger.Log.Error("error on save metric", zap.Error(err))
 		http.Error(w, "error on save metric", http.StatusInternalServerError)
@@ -174,7 +174,7 @@ func (h *MetricHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	if len(metrics) == 0 {
 		http.Error(w, "No metrics provided", http.StatusBadRequest)
 	}
-	err = h.metricService.SaveMetrics(metrics)
+	err = h.metricService.SaveMetrics(r.Context(), metrics)
 	if err != nil {
 		logger.Log.Error("error on save metrics", zap.Error(err))
 		http.Error(w, "save metrics with error", http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	//получаем метрику из хранилаща
-	metric, err := h.metricService.GetMetric(sM.ID)
+	metric, err := h.metricService.GetMetric(r.Context(), sM.ID)
 	if err != nil {
 		http.Error(w, "not found metric", http.StatusNotFound)
 		logger.Log.Warn("get metric by id", zap.Error(err))

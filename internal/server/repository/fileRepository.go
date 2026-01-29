@@ -30,7 +30,7 @@ func NewFileRepository(filepath string) (*FileRepository, error) {
 	return &FileRepository{file: file}, nil
 }
 
-func (fr *FileRepository) GetAll() ([]models.Metric, error) {
+func (fr *FileRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
 	fr.mu.Lock()
 	defer fr.mu.Unlock()
 
@@ -56,8 +56,8 @@ func (fr *FileRepository) GetAll() ([]models.Metric, error) {
 	return metrics, nil
 }
 
-func (fr *FileRepository) GetMetricByID(id string) (*models.Metric, error) {
-	metrics, err := fr.GetAll()
+func (fr *FileRepository) GetMetricByID(ctx context.Context, id string) (*models.Metric, error) {
+	metrics, err := fr.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +69,8 @@ func (fr *FileRepository) GetMetricByID(id string) (*models.Metric, error) {
 	return nil, fmt.Errorf("not found metric with id %s", id)
 }
 
-func (fr *FileRepository) SaveMetric(metric models.Metric) error {
-	metrics, err := fr.GetAll()
+func (fr *FileRepository) SaveMetric(ctx context.Context, metric models.Metric) error {
+	metrics, err := fr.GetAll(ctx)
 	if err != nil {
 		return err
 	}
@@ -87,9 +87,9 @@ func (fr *FileRepository) SaveMetric(metric models.Metric) error {
 	return fr.write(metrics)
 }
 
-func (fr *FileRepository) SaveMetrics(metrics []models.Metric) error {
+func (fr *FileRepository) SaveMetrics(ctx context.Context, metrics []models.Metric) error {
 	for _, m := range metrics {
-		err := fr.SaveMetric(m)
+		err := fr.SaveMetric(ctx, m)
 		if err != nil {
 			return err
 		}
@@ -97,9 +97,9 @@ func (fr *FileRepository) SaveMetrics(metrics []models.Metric) error {
 	return nil
 }
 
-func (fr *FileRepository) DeleteMetricByID(id string) error {
+func (fr *FileRepository) DeleteMetricByID(ctx context.Context, id string) error {
 
-	metrics, err := fr.GetAll()
+	metrics, err := fr.GetAll(ctx)
 	if err != nil {
 		return err
 	}

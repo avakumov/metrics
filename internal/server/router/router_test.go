@@ -2,7 +2,6 @@ package router
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -251,7 +250,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 			path:           "/updates/",
 			expectedStatus: http.StatusOK,
 			body: `[
-			{"id":"testGauge01", "type":"gauge", "value":50}, 
+			{"id":"testGauge01", "type":"gauge", "value":50},
 			{"id":"testGauge02", "type":"gauge", "value":200.5},
 			{"id":"testCounter", "type":"counter", "delta":5}
 			]`,
@@ -291,7 +290,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	options := config.Options{
 		StoreInterval: 800,
 	}
-	metricService := service.NewMetricService(context.Background(), metricsRepo, storeRepo, options)
+	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
@@ -343,7 +342,7 @@ func TestGzipDecoding(t *testing.T) {
 		StoreInterval: 800,
 	}
 
-	metricService := service.NewMetricService(context.Background(), metricsRepo, storeRepo, options)
+	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	r := MetricsRouter(metricHandler)
 	ts := httptest.NewServer(r)
