@@ -2,17 +2,18 @@ package agenterrors
 
 import (
 	"strings"
-
-	"github.com/go-resty/resty/v2"
 )
 
-func IsRetryableError(resp *resty.Response, err error) bool {
-	statusCode := resp.StatusCode()
+func IsRetryableError(statusCode int, err error) bool {
 	if statusCode == 0 && err == nil {
 		return false
 	}
 	//5xx
 	if statusCode >= 500 && statusCode <= 599 {
+		return true
+	}
+	//Too many requests
+	if statusCode == 429 {
 		return true
 	}
 
@@ -27,7 +28,7 @@ func IsRetryableError(resp *resty.Response, err error) bool {
 			"network is unreachable",
 			"EOF",
 			"broken pipe",
-			"429", //Too many requests
+			"429",
 		}
 		for _, pattern := range retreablePatterns {
 			if strings.Contains(errString, pattern) {

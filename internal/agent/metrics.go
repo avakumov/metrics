@@ -222,7 +222,12 @@ func retry(f func() (*resty.Response, error), durations []time.Duration) (*resty
 	var resp *resty.Response
 	for i, duration := range durations {
 		resp, err = f()
-		if agenterrors.IsRetryableError(resp, err) {
+		var statusCode int
+		if resp != nil {
+			statusCode = resp.StatusCode()
+		}
+
+		if agenterrors.IsRetryableError(statusCode, err) {
 			logger.Log.Info("request error. Try again after",
 				zap.Duration("duration", duration),
 				zap.Int("attempt", i+1),
