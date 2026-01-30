@@ -9,7 +9,9 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"time"
 
+	agenterrors "github.com/avakumov/metrics/internal/agent/errors"
 	"github.com/avakumov/metrics/internal/logger"
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/utils"
@@ -19,9 +21,10 @@ import (
 
 // MetricsCollector собирает и управляет метриками
 type MetricsCollector struct {
-	mu          sync.Mutex
-	metrics     []models.Metric
-	restyClient *resty.Client
+	mu             sync.Mutex
+	metrics        []models.Metric
+	restyClient    *resty.Client
+	retryDurations []time.Duration
 }
 
 // NewMetricsCollector создает новый сборщик метрик
@@ -38,12 +41,13 @@ func NewMetricsCollector(url string) *MetricsCollector {
 			return nil
 		})
 	return &MetricsCollector{
-		restyClient: client,
+		restyClient:    client,
+		retryDurations: []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second},
 	}
 }
 
 // Collect собирает все метрики памяти
-func (c *MetricsCollector) Collect() []models.Metric {
+func (c *MetricsCollector) Collect() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -82,8 +86,6 @@ func (c *MetricsCollector) Collect() []models.Metric {
 	c.mu.Lock()
 	c.metrics = metrics
 	c.mu.Unlock()
-
-	return c.metrics
 }
 
 // отправка метрик по одной
@@ -103,11 +105,14 @@ func (c *MetricsCollector) PostMetricsByJSON() {
 		if err == nil {
 			body = compressed
 		}
-		_, err = c.restyClient.R().
-			SetHeader("Content-Type", "application/json").
-			SetHeader("Content-Encoding", "gzip").
-			SetBody(body).
-			Post("/update/")
+		update := func() (*resty.Response, error) {
+			return c.restyClient.R().
+				SetHeader("Content-Type", "application/json").
+				SetHeader("Content-Encoding", "gzip").
+				SetBody(body).
+				Post("/update/")
+		}
+		_, err = retry(update, c.retryDurations)
 
 		if err != nil {
 			logger.Log.Error("request error", zap.Error(err))
@@ -128,12 +133,19 @@ func (c *MetricsCollector) PostMetrics() error {
 		logger.Log.Error("compress with error", zap.Error(err))
 		return err
 	}
-	_, err = c.restyClient.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetBody(body).
-		Post("/updates/")
+	update := func() (*resty.Response, error) {
+		return c.restyClient.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(body).
+			Post("/updates/")
+	}
 
+	resp, err := retry(update, c.retryDurations)
+
+	if resp != nil {
+		logger.Log.Info("RESPONSE", zap.Int("STATUS", resp.StatusCode()))
+	}
 	if err != nil {
 		logger.Log.Error("request error", zap.Error(err))
 		return fmt.Errorf("request error: %w", err)
@@ -156,10 +168,14 @@ func (c *MetricsCollector) PostMetricsByURL() {
 			"metricID":    metric.ID,
 			"metricValue": metricValue,
 		}
-		_, err := c.restyClient.R().
-			SetHeader("Content-Type", "text/plain").
-			SetPathParams(params).
-			Post("/update/{typeMetric}/{metricID}/{metricValue}")
+		update := func() (*resty.Response, error) {
+			return c.restyClient.R().
+				SetHeader("Content-Type", "text/plain").
+				SetPathParams(params).
+				Post("/update/{typeMetric}/{metricID}/{metricValue}")
+		}
+
+		_, err := retry(update, c.retryDurations)
 
 		if err != nil {
 			logger.Log.Error("request error", zap.Error(err))
@@ -199,4 +215,23 @@ func compressGzip(data []byte) ([]byte, error) {
 	}
 	gz.Close()
 	return buf.Bytes(), nil
+}
+
+func retry(f func() (*resty.Response, error), durations []time.Duration) (*resty.Response, error) {
+	var err error
+	var resp *resty.Response
+	for i, duration := range durations {
+		resp, err = f()
+		if agenterrors.IsRetryableError(resp, err) {
+			logger.Log.Info("request error. Try again after",
+				zap.Duration("duration", duration),
+				zap.Int("attempt", i+1),
+				zap.Int("total attempt", len(durations)),
+				zap.Error(err))
+			time.Sleep(duration)
+			continue
+		}
+		return resp, err
+	}
+	return resp, err
 }
