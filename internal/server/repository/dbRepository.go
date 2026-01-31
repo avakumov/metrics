@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/server/database"
+	"github.com/avakumov/metrics/internal/server/pgerrors"
 
 	"context"
 	"database/sql"
@@ -18,13 +19,15 @@ import (
 )
 
 type DBRepository struct {
-	Pool *pgxpool.Pool
+	Pool           *pgxpool.Pool
+	RetryDurations []time.Duration
 }
 
 func NewDBRepository(DSN string) (*DBRepository, error) {
 	logger.Log.Debug("starting new DB repository")
 	var db = &DBRepository{
-		Pool: nil,
+		Pool:           nil,
+		RetryDurations: []time.Duration{time.Second, 3 * time.Second, 5 * time.Second},
 	}
 	if len(DSN) == 0 {
 		return db, fmt.Errorf("DSN string is empty: %s", DSN)
@@ -64,7 +67,7 @@ func NewDBRepository(DSN string) (*DBRepository, error) {
 	return db, nil
 }
 
-func (db *DBRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
+func (db *DBRepository) GetAllWithoutRetry(ctx context.Context) ([]models.Metric, error) {
 	pool := db.Pool
 	if pool == nil {
 		return nil, fmt.Errorf("pool of database repository is nil")
@@ -110,7 +113,7 @@ func (db *DBRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
 	return metrics, nil
 }
 
-func (db *DBRepository) GetMetricByID(ctx context.Context, id string) (*models.Metric, error) {
+func (db *DBRepository) GetMetricByIDWithoutRetry(ctx context.Context, id string) (*models.Metric, error) {
 	pool := db.Pool
 	if pool == nil {
 		return nil, fmt.Errorf("pool of database repository is nil")
@@ -148,7 +151,7 @@ func (db *DBRepository) GetMetricByID(ctx context.Context, id string) (*models.M
 	return &m, nil
 }
 
-func (db *DBRepository) SaveMetric(ctx context.Context, metric models.Metric) error {
+func (db *DBRepository) SaveMetricWithouRetry(ctx context.Context, metric models.Metric) error {
 	pool := db.Pool
 	if pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
@@ -172,7 +175,7 @@ func (db *DBRepository) SaveMetric(ctx context.Context, metric models.Metric) er
 	return nil
 }
 
-func (db *DBRepository) SaveMetrics(ctx context.Context, metrics []models.Metric) error {
+func (db *DBRepository) SaveMetricsWithoutRetry(ctx context.Context, metrics []models.Metric) error {
 
 	if db.Pool == nil {
 		return fmt.Errorf("pool of database repository is nil")
@@ -227,7 +230,8 @@ func (db *DBRepository) SaveMetrics(ctx context.Context, metrics []models.Metric
 
 }
 
-func (db *DBRepository) DeleteMetricByID(ctx context.Context, id string) error {
+// delete metric without retry
+func (db *DBRepository) DeleteMetricByIDWithoutRetry(ctx context.Context, id string) error {
 	pool := db.Pool
 
 	if pool == nil {
@@ -264,4 +268,81 @@ func (db *DBRepository) Close() {
 	}
 	db.Pool.Close()
 	logger.Log.Info("✅ Closed to PostgreSQL")
+}
+
+func (db *DBRepository) SaveMetrics(ctx context.Context, metrics []models.Metric) error {
+	fn := func() error {
+		return db.SaveMetricsWithoutRetry(ctx, metrics)
+	}
+	return withRetry(fn, db.RetryDurations)
+}
+
+func (db *DBRepository) SaveMetric(ctx context.Context, metric models.Metric) error {
+	fn := func() error { return db.SaveMetricWithouRetry(ctx, metric) }
+	return withRetry(fn, db.RetryDurations)
+}
+
+func (db *DBRepository) GetMetricByID(ctx context.Context, id string) (*models.Metric, error) {
+	fn := func() (*models.Metric, error) { return db.GetMetricByIDWithoutRetry(ctx, id) }
+	return withRetryWithResult(fn, db.RetryDurations)
+}
+
+func (db *DBRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
+	fn := func() ([]models.Metric, error) { return db.GetAllWithoutRetry(ctx) }
+	return withRetryWithResult(fn, db.RetryDurations)
+}
+
+func (db *DBRepository) DeleteMetricByID(ctx context.Context, id string) error {
+	fn := func() error { return db.DeleteMetricByIDWithoutRetry(ctx, id) }
+	return withRetry(fn, db.RetryDurations)
+}
+
+// при retryable ошибке будет делать еще запросы
+func withRetry(f func() error, durations []time.Duration) error {
+	pgErrorClassifier := pgerrors.NewPostgresErrorClassifier()
+	var err error
+	for i, duration := range durations {
+		err = f()
+		switch pgErrorClassifier.Classify(err) {
+		case pgerrors.NonRetriable:
+			return err
+		case pgerrors.Retriable:
+			logger.Log.Info("Request retriable error",
+				zap.Duration("duration", duration),
+				zap.Int("attempt", i+1),
+				zap.Int("total attempt", len(durations)),
+				zap.Error(err))
+			time.Sleep(duration)
+		default: // No error
+			return nil
+		}
+	}
+	return err
+}
+
+// при retryable ошибке будет делать еще запросы
+func withRetryWithResult[T any](fn func() (T, error), durations []time.Duration,
+) (T, error) {
+
+	pgErrorClassifier := pgerrors.NewPostgresErrorClassifier()
+	var zero T
+	var err error
+
+	for i, duration := range durations {
+		result, err := fn()
+		switch pgErrorClassifier.Classify(err) {
+		case pgerrors.NonRetriable:
+			return zero, err
+		case pgerrors.Retriable:
+			logger.Log.Info("Request retriable error",
+				zap.Duration("duration", duration),
+				zap.Int("attempt", i+1),
+				zap.Int("total attempt", len(durations)),
+				zap.Error(err))
+			time.Sleep(duration)
+		default: // No error
+			return result, nil
+		}
+	}
+	return zero, err
 }

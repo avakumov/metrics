@@ -217,6 +217,7 @@ func compressGzip(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// при retryable ошибке будет делать еще запросы
 func retry(f func() (*resty.Response, error), durations []time.Duration) (*resty.Response, error) {
 	var err error
 	var resp *resty.Response
