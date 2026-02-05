@@ -16,6 +16,10 @@ func CheckHashMiddleware(key string) func(http.Handler) http.Handler {
 			hash := r.Header.Get("HashSHA256")
 			if key != "" {
 				data, err := io.ReadAll(r.Body)
+				if err != nil {
+					http.Error(w, "error read body", http.StatusInternalServerError)
+					return
+				}
 				// ВОССТАНАВЛИВАЕМ тело для дальнейшего использования
 				r.Body = io.NopCloser(bytes.NewReader(data))
 
@@ -67,7 +71,10 @@ func AddHashHeaderMiddleware(key string) func(http.Handler) http.Handler {
 				if err != nil {
 					// Отправляем без хеша при ошибке
 					w.WriteHeader(hw.statusCode)
-					w.Write(responseBuffer.Bytes())
+					_, err := w.Write(responseBuffer.Bytes())
+					if err != nil {
+						logger.Log.Error("error write body", zap.Error(err))
+					}
 					return
 				}
 
@@ -78,7 +85,10 @@ func AddHashHeaderMiddleware(key string) func(http.Handler) http.Handler {
 				w.WriteHeader(hw.statusCode)
 
 				// 7. Отправляем тело
-				w.Write(responseBuffer.Bytes())
+				_, err = w.Write(responseBuffer.Bytes())
+				if err != nil {
+					logger.Log.Error("error write body", zap.Error(err))
+				}
 			} else {
 				// Пустой ответ
 				w.WriteHeader(hw.statusCode)
