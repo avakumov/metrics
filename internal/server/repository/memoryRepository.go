@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -17,20 +18,21 @@ func NewMemoryRepository() *MemoryRepository {
 		metrics: make(map[string]models.Metric),
 		mu:      sync.Mutex{},
 	}
+
 }
 
-func (r *MemoryRepository) GetMetricByID(id string) (models.Metric, error) {
+func (r *MemoryRepository) GetMetricByID(ctx context.Context, id string) (*models.Metric, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	metric, ok := r.metrics[id]
 	if !ok {
-		return models.Metric{}, fmt.Errorf("not found metric: %s", id)
+		return nil, fmt.Errorf("not found metric: %s", id)
 	}
-	return metric, nil
+	return &metric, nil
 }
 
-func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
+func (r *MemoryRepository) SaveMetric(ctx context.Context, metric models.Metric) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -38,7 +40,17 @@ func (r *MemoryRepository) SaveMetric(metric models.Metric) error {
 	return nil
 }
 
-func (r *MemoryRepository) DeleteMetricByID(id string) error {
+func (r *MemoryRepository) SaveMetrics(ctx context.Context, metrics []models.Metric) error {
+	for _, metric := range metrics {
+		err := r.SaveMetric(ctx, metric)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *MemoryRepository) DeleteMetricByID(ctx context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -50,7 +62,7 @@ func (r *MemoryRepository) DeleteMetricByID(id string) error {
 	return nil
 }
 
-func (r *MemoryRepository) FindAll() ([]models.Metric, error) {
+func (r *MemoryRepository) GetAll(ctx context.Context) ([]models.Metric, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -59,5 +71,13 @@ func (r *MemoryRepository) FindAll() ([]models.Metric, error) {
 		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+
+}
+
+func (r *MemoryRepository) Ping(ctx context.Context) error {
+	return fmt.Errorf("ping is not available. The memory repository is being used")
+}
+
+func (r *MemoryRepository) Close() {
 
 }

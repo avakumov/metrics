@@ -1,0 +1,8 @@
+[build]
+  cmd = "go build -o ./tmp/main ./dev"
+  bin = "./tmp/main"
+  send_interrupt = true  # Отправляет SIGINT в дочерний процесс
+  kill_delay = 2000        # 2 секунды на graceful shutdown
+  stop_on_error = false    # Продолжать при ошибках сборки
+[misc]
+  clean_on_exit = true
