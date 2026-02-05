@@ -17,6 +17,7 @@ type Options struct {
 	Restore         bool   `env:"RESTORE"`           //flag -r
 	LogLevel        string `env:"LOG_LEVEL"`         //flag -log
 	DSN             string `env:"DATABASE_DSN"`      //flag -d
+	Key             string `env:"KEY"`               //-k key for hash data
 }
 
 func (a *Options) Set(s string) error {
@@ -41,6 +42,7 @@ func GetOptions() Options {
 		StoreInterval:   15,
 		Restore:         true,
 		LogLevel:        "info",
+		//Key:             "superpassword",
 	}
 
 	//options from env
@@ -56,6 +58,7 @@ func GetOptions() Options {
 	flag.BoolVar(&options.Restore, "r", options.Restore, "Restore data on start")
 	flag.StringVar(&options.LogLevel, "log", options.LogLevel, "Level of logging")
 	flag.StringVar(&options.DSN, "d", options.DSN, "Database DSN")
+	flag.StringVar(&options.Key, "k", options.Key, "Hash key")
 	flag.Parse()
 
 	return options

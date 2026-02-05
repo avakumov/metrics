@@ -292,7 +292,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	r := MetricsRouter(metricHandler)
+	r := MetricsRouter(options.Key, metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -344,7 +344,7 @@ func TestGzipDecoding(t *testing.T) {
 
 	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	r := MetricsRouter(metricHandler)
+	r := MetricsRouter(options.Key, metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 

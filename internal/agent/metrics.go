@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"runtime"
 	"strconv"
@@ -28,13 +29,27 @@ type MetricsCollector struct {
 }
 
 // NewMetricsCollector создает новый сборщик метрик
-func NewMetricsCollector(url string) *MetricsCollector {
+func NewMetricsCollector(url string, key string) *MetricsCollector {
 	client := resty.New()
 	client.SetBaseURL(url)
 
 	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
+		if key == "" {
+			return nil
+		}
+		bodyBytes, err := getRequestBodyAsBytes(req)
+		if err != nil {
+			return fmt.Errorf("failed to get request body: %w", err)
+		}
+		hash, err := utils.HashHMACSHA256(bodyBytes, key)
+		if err != nil {
+			return fmt.Errorf("failed to compute hash: %w", err)
+		}
+
+		req.SetHeader("HashSHA256", hash)
 		return nil
 	})
+
 	client.OnAfterResponse(
 		func(c *resty.Client, resp *resty.Response) error {
 			logger.Log.Info("REQUEST: ", zap.String("url", resp.Request.URL), zap.Int("code", resp.StatusCode()))
@@ -134,11 +149,12 @@ func (c *MetricsCollector) PostMetrics() error {
 		return err
 	}
 	update := func() (*resty.Response, error) {
-		return c.restyClient.R().
-			SetHeader("Content-Type", "application/json").
+		r := c.restyClient.R()
+
+		r.SetHeader("Content-Type", "application/json").
 			SetHeader("Content-Encoding", "gzip").
-			SetBody(body).
-			Post("/updates/")
+			SetBody(body)
+		return r.Post("/updates/")
 	}
 
 	resp, err := retry(update, c.retryDurations)
@@ -240,4 +256,22 @@ func retry(f func() (*resty.Response, error), durations []time.Duration) (*resty
 		return resp, err
 	}
 	return resp, err
+}
+
+func getRequestBodyAsBytes(req *resty.Request) ([]byte, error) {
+	if req.Body == nil {
+		return []byte{}, nil
+	}
+
+	switch body := req.Body.(type) {
+	case []byte:
+		return body, nil
+	case string:
+		return []byte(body), nil
+	case io.Reader:
+		return io.ReadAll(body)
+	default:
+		//для структур/map - сериализуем в JSON
+		return json.Marshal(body)
+	}
 }
