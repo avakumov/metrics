@@ -32,6 +32,7 @@ func CheckHashMiddleware(key string) func(http.Handler) http.Handler {
 					return
 				}
 				if hash != hashSHA256 {
+					logger.Log.Info("hash from request not equals hash on server")
 					//TODO: закоментировано для попытки пройти тесты
 					//http.Error(w, "hashSHA256 is wrong", http.StatusBadRequest)
 					//return
