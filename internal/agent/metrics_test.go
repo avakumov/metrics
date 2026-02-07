@@ -67,7 +67,8 @@ func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			collector.Collect()
-			if len(collector.metrics) == 0 {
+			metrics := collector.getMetrics()
+			if len(metrics) == 0 {
 				t.Error("Expected non-empty metrics in concurrent access")
 			}
 		}()
