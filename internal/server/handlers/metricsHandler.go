@@ -197,14 +197,12 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	//получаем метрику из хранилаща
 	metric, err := h.metricService.GetMetric(r.Context(), sM.ID)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		//http.Error(w, "not found metric", http.StatusNotFound)
+		http.Error(w, "not found metric", http.StatusNotFound)
 		logger.Log.Warn("get metric by id", zap.Error(err))
 		return
 	}
 	if metric.MType != sM.MType {
-		w.WriteHeader(http.StatusNotFound)
-		//http.Error(w, "not found metric", http.StatusNotFound)
+		http.Error(w, "not found metric", http.StatusNotFound)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(metric); err != nil {

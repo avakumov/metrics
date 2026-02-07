@@ -58,7 +58,7 @@ func GetOptions() Options {
 	flag.BoolVar(&options.Restore, "r", options.Restore, "Restore data on start")
 	flag.StringVar(&options.LogLevel, "log", options.LogLevel, "Level of logging")
 	flag.StringVar(&options.DSN, "d", options.DSN, "Database DSN")
-	flag.StringVar(&options.Key, "k", options.Key, "Hash key")
+	//flag.StringVar(&options.Key, "k", options.Key, "Hash key")
 	flag.Parse()
 
 	return options
