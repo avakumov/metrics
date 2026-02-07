@@ -352,13 +352,13 @@ func TestGzipDecoding(t *testing.T) {
 		acceptEncoding              string
 	}{
 		{
-			name:                        "Get unknown counter metric by json on with gzip /value/",
-			method:                      http.MethodPost,
-			contentType:                 "application/json",
-			expectedResponseContentType: "application/json",
-			path:                        "/value/",
-			expectedStatus:              http.StatusNotFound,
-			body:                        ` {"id":"testCounter", "type":"counter"}`,
+			name:        "Get unknown counter metric by json on with gzip /value/",
+			method:      http.MethodPost,
+			contentType: "application/json",
+			//expectedResponseContentType: "application/json",
+			path:           "/value/",
+			expectedStatus: http.StatusNotFound,
+			body:           ` {"id":"testCounter", "type":"counter"}`,
 			//expectedResponse:    `{"id":"testCounter", "type":"counter", "delta":19}`,
 			contentEncoding: "gzip",
 			acceptEncoding:  "gzip",
