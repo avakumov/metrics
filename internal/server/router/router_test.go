@@ -415,6 +415,7 @@ func TestGzipDecoding(t *testing.T) {
 
 		resp, err := ts.Client().Do(req)
 		require.NoError(t, err)
+		defer resp.Body.Close()
 
 		assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 		if tt.expectedResponseContentType != "" {
