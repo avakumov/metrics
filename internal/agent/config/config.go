@@ -11,10 +11,12 @@ import (
 )
 
 type Options struct {
-	PollInterval   int    `env:"POLL_INTERVAL"`
-	ReportInterval int    `env:"REPORT_INTERVAL"`
-	Address        string `env:"ADDRESS"`
-	Level          string `env:"LOG_LEVEL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`   //-p интервал получения метрик в секундах
+	ReportInterval int    `env:"REPORT_INTERVAL"` //-r интервал отправки метрик в секундах
+	Address        string `env:"ADDRESS"`         //-a address for report metrics
+	Level          string `env:"LOG_LEVEL"`       //-log level of logger
+	Key            string `env:"KEY"`             //-k key for hash data
+	RateLimit      int    `env:"RATE_LIMIT"`      //-l key for rate limit
 }
 
 func (a *Options) Set(s string) error {
@@ -37,6 +39,8 @@ func GetOptions() Options {
 		PollInterval:   2,
 		ReportInterval: 10,
 		Level:          "info",
+		RateLimit:      5,
+		//Key:            "superpassword",
 	}
 
 	// options from env
@@ -65,6 +69,8 @@ func GetOptions() Options {
 		options.PollInterval,
 		"Poll interval in seconds",
 	)
+	flag.StringVar(&options.Key, "k", options.Key, "Key for for hash")
+	flag.IntVar(&options.RateLimit, "l", options.RateLimit, "Rate limit of gourutines")
 
 	flag.Parse()
 

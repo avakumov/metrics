@@ -44,7 +44,7 @@ func main() {
 	metricHandler := handlers.NewMetricsHandler(metricService)
 	server := http.Server{
 		Addr:    options.Address,
-		Handler: router.MetricsRouter(metricHandler),
+		Handler: router.MetricsRouter(options.Key, metricHandler),
 	}
 
 	go func() {

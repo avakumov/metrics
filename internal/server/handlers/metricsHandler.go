@@ -185,6 +185,7 @@ func (h *MetricHandler) UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	sM := models.Metric{}
 	if err := json.NewDecoder(r.Body).Decode(&sM); err != nil {
 		http.Error(w, "parsing json error", http.StatusBadRequest)
@@ -193,7 +194,6 @@ func (h *MetricHandler) GetMetricValues(w http.ResponseWriter, r *http.Request) 
 	defer r.Body.Close()
 	logger.Log.Sugar().Debugf("receive metrics: %+v", sM)
 
-	w.Header().Set("Content-Type", "application/json")
 	//получаем метрику из хранилаща
 	metric, err := h.metricService.GetMetric(r.Context(), sM.ID)
 	if err != nil {

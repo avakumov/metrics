@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"compress/gzip"
-	"encoding/json"
+	//"encoding/json"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,13 +22,14 @@ import (
 
 func TestUpdateMetricHandler(t *testing.T) {
 	tests := []struct {
-		name             string
-		method           string
-		path             string
-		contentType      string
-		body             string
-		expectedStatus   int
-		expectedResponse string
+		name                string
+		method              string
+		path                string
+		contentType         string
+		body                string
+		expectedStatus      int
+		expectedResponse    string
+		expectedContentType string
 	}{
 		// Тесты на неподдерживаемые HTTP методы
 		{
@@ -274,13 +275,14 @@ func TestUpdateMetricHandler(t *testing.T) {
 			expectedResponse: `{"id":"testGauge02", "type":"gauge", "value":200.5}`,
 		},
 		{
-			name:             "Get counter metric by json on /value/",
-			method:           http.MethodPost,
-			contentType:      "application/json",
-			path:             "/value/",
-			expectedStatus:   http.StatusOK,
-			body:             ` {"id":"testCounter", "type":"counter"}`,
-			expectedResponse: `{"id":"testCounter", "type":"counter", "delta":19}`,
+			name:                "Get counter metric by json on /value/",
+			method:              http.MethodPost,
+			contentType:         "application/json",
+			expectedContentType: "application/json",
+			path:                "/value/",
+			expectedStatus:      http.StatusOK,
+			body:                ` {"id":"testCounter", "type":"counter"}`,
+			expectedResponse:    `{"id":"testCounter", "type":"counter", "delta":19}`,
 		},
 	}
 
@@ -292,7 +294,7 @@ func TestUpdateMetricHandler(t *testing.T) {
 	}
 	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	r := MetricsRouter(metricHandler)
+	r := MetricsRouter(options.Key, metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
@@ -304,8 +306,11 @@ func TestUpdateMetricHandler(t *testing.T) {
 				resp.Body.Close()
 			})
 			assert.Equal(t, v.expectedStatus, resp.StatusCode)
+			if v.expectedContentType != "" {
+				assert.Equal(t, v.expectedContentType, resp.Header.Get("Content-Type"))
+			}
 			if v.expectedResponse != "" {
-				t.Logf("Body: %s", body)
+				//t.Logf("Body: %s", body)
 				assert.JSONEq(t, v.expectedResponse, body)
 			}
 
@@ -334,6 +339,44 @@ func testRequest(t *testing.T, ts *httptest.Server, method,
 
 // TestGzipDecoding проверяет декодирование входящих gzip данных
 func TestGzipDecoding(t *testing.T) {
+	tests := []struct {
+		name                        string
+		method                      string
+		path                        string
+		contentType                 string
+		body                        string
+		expectedStatus              int
+		expectedResponse            string
+		expectedResponseContentType string
+		contentEncoding             string
+		acceptEncoding              string
+	}{
+		{
+			name:        "Get unknown counter metric by json on with gzip /value/",
+			method:      http.MethodPost,
+			contentType: "application/json",
+			//expectedResponseContentType: "application/json",
+			path:           "/value/",
+			expectedStatus: http.StatusNotFound,
+			body:           ` {"id":"testCounter", "type":"counter"}`,
+			//expectedResponse:    `{"id":"testCounter", "type":"counter", "delta":19}`,
+			contentEncoding: "gzip",
+			acceptEncoding:  "gzip",
+		},
+		{
+			name:        "Update counter metric by json on with gzip /update/",
+			method:      http.MethodPost,
+			contentType: "application/json",
+			//expectedContentType: "application/json",
+			path:           "/update/",
+			expectedStatus: http.StatusOK,
+			body:           ` {"id":"testCounter22", "type":"counter", "delta":10}`,
+			//expectedResponse:    `{"id":"testCounter", "type":"counter", "delta":19}`,
+			contentEncoding: "gzip",
+			acceptEncoding:  "gzip",
+		},
+	}
+
 	metricsRepo := repository.NewMemoryRepository()
 	storeRepo, err := repository.NewFileRepository("data.json")
 	require.NoError(t, err)
@@ -344,37 +387,44 @@ func TestGzipDecoding(t *testing.T) {
 
 	metricService := service.NewMetricService(metricsRepo, storeRepo, options)
 	metricHandler := handlers.NewMetricsHandler(metricService)
-	r := MetricsRouter(metricHandler)
+	r := MetricsRouter(options.Key, metricHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 
-	// Создаем JSON данные
-	jsonData := map[string]interface{}{
-		"id":    "testMetric",
-		"type":  "gauge",
-		"value": 123.45,
-	}
-	data, _ := json.Marshal(jsonData)
+	for _, tt := range tests {
 
-	// Сжимаем данные gzip
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	_, err = gz.Write(data)
-	require.NoError(t, err)
-	gz.Close()
+		// Сжимаем данные gzip
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		_, err = gz.Write([]byte(tt.body))
+		require.NoError(t, err)
+		gz.Close()
 
-	// Создаем запрос с gzip сжатием
-	req := httptest.NewRequest("POST", "/update/", &buf)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "gzip")
-	req.Header.Set("Accept-Encoding", "gzip") // Для ответа
+		// Создаем запрос с gzip сжатием
+		req, err := http.NewRequest(tt.method, ts.URL+tt.path, &buf)
+		require.NoError(t, err)
+		if tt.acceptEncoding != "" {
+			req.Header.Set("Accept-Encoding", tt.acceptEncoding)
+		}
+		if tt.contentEncoding != "" {
+			req.Header.Set("Content-Encoding", tt.contentEncoding)
+		}
+		if tt.contentType != "" {
+			req.Header.Set("Content-Type", tt.contentType)
+		}
 
-	rr := httptest.NewRecorder()
-	r.ServeHTTP(rr, req)
+		resp, err := ts.Client().Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
 
-	// Проверяем, что запрос обработан (не 400)
-	if rr.Code != http.StatusOK {
-		t.Errorf("Handler вернул BadRequest для gzip запроса. Возможно декодирование не работает")
+		assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+		if tt.expectedResponseContentType != "" {
+			assert.Equal(t, tt.expectedResponseContentType, resp.Header.Get("Content-Type"))
+		}
+		// Проверяем, что запрос обработан (не 400)
+		// if .Code != http.StatusOK {
+		// 	t.Errorf("Handler вернул BadRequest для gzip запроса. Возможно декодирование не работает")
+		// }
 	}
 
 }
