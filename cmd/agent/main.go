@@ -17,7 +17,7 @@ func main() {
 	defer logger.Log.Sync() //nolint:errcheck
 	logger.Log.Sugar().Infof("START OPTIONS: %+v", options)
 
-	collector := agent.NewMetricsCollector("http://" + options.Address)
+	collector := agent.NewMetricsCollector("http://"+options.Address, options.Key)
 
 	collectTicker := time.NewTicker(time.Duration(options.PollInterval) * time.Second)
 	defer collectTicker.Stop()

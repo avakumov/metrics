@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/avakumov/metrics/internal/models"
+	"github.com/avakumov/metrics/internal/utils"
+
 	//"github.com/avakumov/metrics/internal/utils"
 	//"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +21,7 @@ import (
 )
 
 func TestMemStatsCollector_Collect(t *testing.T) {
-	collector := NewMetricsCollector("http://localhost:8080")
+	collector := NewMetricsCollector("http://localhost:8080", "")
 
 	// Вызываем Collect несколько раз для проверки
 	collector.Collect()
@@ -54,7 +57,7 @@ func TestMemStatsCollector_Collect(t *testing.T) {
 }
 
 func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
-	collector := NewMetricsCollector("http://localhost:8080")
+	collector := NewMetricsCollector("http://localhost:8080", "")
 	var wg sync.WaitGroup
 	iterations := 100
 
@@ -64,7 +67,8 @@ func TestMemStatsCollector_Collect_Concurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			collector.Collect()
-			if len(collector.metrics) == 0 {
+			metrics := collector.getMetrics()
+			if len(metrics) == 0 {
 				t.Error("Expected non-empty metrics in concurrent access")
 			}
 		}()
@@ -102,7 +106,7 @@ func TestPostMetrics_Integration(t *testing.T) {
 
 	defer server.Close()
 
-	collector := NewMetricsCollector(server.URL)
+	collector := NewMetricsCollector(server.URL, "")
 	collector.Collect()
 	time.Sleep(10 * time.Millisecond) // Даем время для изменения метрик
 	err := collector.PostMetrics()
@@ -125,7 +129,7 @@ func TestPostMetrics_Integration_With_Retry(t *testing.T) {
 
 	defer server.Close()
 
-	collector := NewMetricsCollector(server.URL)
+	collector := NewMetricsCollector(server.URL, "")
 	collector.Collect()
 	time.Sleep(10 * time.Millisecond) // Даем время для изменения метрик
 	err := collector.PostMetrics()
@@ -147,11 +151,59 @@ func TestPostMetrics_Integration_Without_retry(t *testing.T) {
 
 	defer server.Close()
 
-	collector := NewMetricsCollector(server.URL)
+	collector := NewMetricsCollector(server.URL, "")
 	collector.Collect()
 	time.Sleep(10 * time.Millisecond) // Даем время для изменения метрик
 	err := collector.PostMetrics()
 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, attempts, "Should no retry after 403 error")
+}
+
+func TestPostMetricsHashSHA256_Integration(t *testing.T) {
+	key := "superpassword"
+	// Запускаем тестовый сервер
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// Проверяем заголовки
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "gzip", r.Header.Get("Content-Encoding"))
+
+		//проверяем hash
+		data, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		// ВОССТАНАВЛИВАЕМ тело для дальнейшего использования
+		r.Body = io.NopCloser(bytes.NewReader(data))
+
+		hashSHA256, err := utils.HashHMACSHA256(data, key)
+		require.NoError(t, err)
+		assert.Equal(t, hashSHA256, r.Header.Get("HashSHA256"))
+
+		// Декомпрессим тело
+		gz, err := gzip.NewReader(r.Body)
+		require.NoError(t, err)
+		defer gz.Close()
+
+		body, err := io.ReadAll(gz)
+		require.NoError(t, err)
+
+		// Парсим JSON
+		var metrics []models.Metric
+		err = json.Unmarshal(body, &metrics)
+		require.NoError(t, err)
+
+		// Проверяем данные
+		assert.Len(t, metrics, 29)
+
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	defer server.Close()
+
+	collector := NewMetricsCollector(server.URL, key)
+	collector.Collect()
+	time.Sleep(10 * time.Millisecond) // Даем время для изменения метрик
+	err := collector.PostMetrics()
+
+	assert.NoError(t, err)
 }
