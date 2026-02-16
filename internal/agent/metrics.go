@@ -17,6 +17,8 @@ import (
 	"github.com/avakumov/metrics/internal/models"
 	"github.com/avakumov/metrics/internal/utils"
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
 )
 
@@ -96,11 +98,51 @@ func (c *MetricsCollector) Collect() {
 		{ID: "TotalAlloc", MType: "gauge", Value: utils.Float64Ptr(m.TotalAlloc)},
 		{ID: "RandomValue", MType: "gauge", Value: utils.Float64Ptr(rand.Float64() * 1000.0)},
 	}
-	setCounter(&metrics)
+	c.updateCounter()
+	c.updateMetrics(metrics)
+}
 
+func (c *MetricsCollector) CollectSystemMetrics() {
+
+	// Сбор информации о памяти
+	vmStat, err := mem.VirtualMemory()
+	if err != nil {
+		logger.Log.Error("failed to get virtual memory stats:", zap.Error(err))
+	}
+	metrics := []models.Metric{
+		{ID: "TotalMemory", MType: "gauge", Value: utils.Float64Ptr(vmStat.Total)},
+		{ID: "FreeMemory", MType: "gauge", Value: utils.Float64Ptr(vmStat.Free)},
+	}
+
+	// Получаем процент использования для каждого CPU
+	percentages, err := cpu.Percent(100*time.Millisecond, true) // true - для каждого CPU отдельно
+	if err != nil {
+		logger.Log.Error("failed to get cpu percentages", zap.Error(err))
+	}
+	for i := 0; i < len(percentages); i++ {
+		metrics = append(metrics, models.Metric{ID: fmt.Sprintf("CPUutilization%d", i+1), MType: "gauge", Value: &percentages[i]})
+	}
+	c.updateMetrics(metrics)
+}
+
+func (c *MetricsCollector) updateMetric(metric models.Metric) {
 	c.mu.Lock()
-	c.metrics = metrics
-	c.mu.Unlock()
+	defer c.mu.Unlock()
+	for i, m := range c.metrics {
+		if metric.ID == m.ID {
+
+			c.metrics[i] = metric
+			return
+		}
+	}
+	c.metrics = append(c.metrics, metric)
+}
+
+func (c *MetricsCollector) updateMetrics(metrics []models.Metric) {
+	for _, m := range metrics {
+		c.updateMetric(m)
+	}
+
 }
 
 // отправка метрик по одной
@@ -208,15 +250,25 @@ func (c *MetricsCollector) getMetrics() []models.Metric {
 	return metrics
 }
 
-func setCounter(metrics *[]models.Metric) {
-	for i := range *metrics {
-		if (*metrics)[i].ID == "PollCount" {
-			*(*metrics)[i].Delta += 1
+func (c *MetricsCollector) updateCounter() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i := range c.metrics {
+		if c.metrics[i].ID == "PollCount" {
+			// Работаем напрямую с элементом среза через индекс
+			if c.metrics[i].Delta == nil {
+				var start int64 = 1
+				c.metrics[i].Delta = &start
+			} else {
+				*c.metrics[i].Delta++
+			}
 			return
 		}
 	}
-	var startCounter int64 = 1
-	*metrics = append(*metrics, models.Metric{
+
+	// Если не нашли, создаём новую метрику
+	startCounter := int64(1)
+	c.metrics = append(c.metrics, models.Metric{
 		ID:    "PollCount",
 		MType: "counter",
 		Delta: &startCounter,

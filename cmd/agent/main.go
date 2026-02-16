@@ -6,6 +6,7 @@ import (
 	"github.com/avakumov/metrics/internal/agent"
 	"github.com/avakumov/metrics/internal/agent/config"
 	"github.com/avakumov/metrics/internal/logger"
+	"github.com/avakumov/metrics/internal/utils"
 	"go.uber.org/zap"
 )
 
@@ -25,16 +26,25 @@ func main() {
 	sendTicker := time.NewTicker(time.Duration(options.ReportInterval) * time.Second)
 	defer sendTicker.Stop()
 
+	numWorker := options.RateLimit
+	pool := utils.NewWorkerPool(numWorker, 20, func() {
+		err := collector.PostMetrics()
+		if err != nil {
+			logger.Log.Error("post metrics error", zap.Error(err))
+		}
+	})
+	pool.Start()
+	defer pool.Stop()
+	counter := 1
+
 	for {
 		select {
 		case <-collectTicker.C:
-			collector.Collect()
+			go collector.Collect()
+			go collector.CollectSystemMetrics()
 		case <-sendTicker.C:
-			//collector.PostMetricsByJSON()
-			err := collector.PostMetrics()
-			if err != nil {
-				logger.Log.Error("post metrics error", zap.Error(err))
-			}
+			counter++
+			go pool.Submit(counter)
 		}
 	}
 }
