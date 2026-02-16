@@ -111,7 +111,7 @@ func (h *MetricHandler) GetAll(rw http.ResponseWriter, r *http.Request) {
 	sort.Slice(data.Metrics, func(i, j int) bool {
 		return data.Metrics[i].ID < data.Metrics[j].ID
 	})
-	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/allMetrics.html"))
+	tmpl := template.Must(template.ParseFiles("../../internal/server/templates/all_metrics.html"))
 	//Execute добавляет статус 200
 	err = tmpl.Execute(rw, data)
 	if err != nil {
